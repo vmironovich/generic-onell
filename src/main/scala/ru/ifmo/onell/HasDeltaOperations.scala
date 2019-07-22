@@ -47,6 +47,13 @@ trait HasDeltaOperations[DeltaRepresentation] {
     */
   def initializeDeltaFromExisting(delta: DeltaRepresentation, source: DeltaRepresentation,
                                   expectedSize: Double, rng: Random): Int
+
+  /**
+    * Copies the deltas from source to target.
+    * @param source the source delta.
+    * @param target the target delta.
+    */
+  def copyDelta(source: DeltaRepresentation, target: DeltaRepresentation): Unit
 }
 
 /**

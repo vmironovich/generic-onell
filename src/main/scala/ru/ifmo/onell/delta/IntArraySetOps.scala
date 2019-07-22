@@ -41,4 +41,9 @@ object IntArraySetOps extends HasDeltaOperations[IntArraySet] {
 
     delta.size
   }
+
+  override def copyDelta(source: IntArraySet, target: IntArraySet): Unit = {
+    target.clear()
+    for (i <- source) target += i
+  }
 }

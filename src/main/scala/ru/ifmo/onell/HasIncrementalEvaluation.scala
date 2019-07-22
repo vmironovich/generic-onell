@@ -26,4 +26,21 @@ trait HasIncrementalEvaluation[MutableIndividual, -DeltaRepresentation, @special
     * @param delta the delta to be unapplied.
     */
   def unapplyDelta(ind: MutableIndividual, delta: DeltaRepresentation): Unit
+
+  /**
+    * Evaluates the given individual, assuming the delta is applied.
+    * The individual shall retain in the original state after applying this operation,
+    * although it may be modified during the computation.
+    *
+    * @param ind the individual to measure assuming delta is applied.
+    * @param delta the delta to be applied.
+    * @param currentFitness the current fitness of the individual.
+    * @return the new fitness after applying the change; the individual remains intact.
+    */
+  def evaluateAssumingDelta(ind: MutableIndividual, delta: DeltaRepresentation,
+                            currentFitness: FitnessValue): FitnessValue = {
+    val result = applyDelta(ind, delta, currentFitness)
+    unapplyDelta(ind, delta)
+    result
+  }
 }
