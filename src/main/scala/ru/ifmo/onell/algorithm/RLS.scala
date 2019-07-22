@@ -4,9 +4,12 @@ import java.util.concurrent.ThreadLocalRandom
 
 import scala.annotation.tailrec
 
-import ru.ifmo.onell.{HasDeltaOperations, HasEvaluation, HasIncrementalEvaluation, HasIndividualOperations}
+import ru.ifmo.onell.{HasDeltaOperations, HasEvaluation, HasIncrementalEvaluation, HasIndividualOperations, Optimizer}
 
-object RLS {
+/**
+  * This is an implementation of randomized local search.
+  */
+object RLS extends Optimizer {
   final def optimize[I, F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
                              (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Int = {
     val problemSize = fitness.problemSize
