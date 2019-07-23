@@ -14,7 +14,7 @@ object IntArraySetOps extends HasDeltaOperations[IntArraySet] {
     val scanner = BinomialScanner(expectedSize / problemSize)
     var index = scanner.offset(rng) - 1
     while (index < problemSize) {
-      delta += index
+      delta.add(index)
       index += scanner.offset(rng)
     }
 
@@ -24,7 +24,7 @@ object IntArraySetOps extends HasDeltaOperations[IntArraySet] {
   override def initializeDeltaWithGivenSize(delta: IntArraySet, problemSize: Int, size: Int, rng: Random): Unit = {
     delta.clear()
     while (delta.size < size) {
-      delta += rng.nextInt(problemSize)
+      delta.add(rng.nextInt(problemSize))
     }
   }
 
@@ -35,7 +35,7 @@ object IntArraySetOps extends HasDeltaOperations[IntArraySet] {
     val scanner = BinomialScanner(expectedSize / sourceSize)
     var index = scanner.offset(rng) - 1
     while (index < sourceSize) {
-      delta += source(index)
+      delta.add(source(index))
       index += scanner.offset(rng)
     }
 
@@ -44,6 +44,11 @@ object IntArraySetOps extends HasDeltaOperations[IntArraySet] {
 
   override def copyDelta(source: IntArraySet, target: IntArraySet): Unit = {
     target.clear()
-    for (i <- source) target += i
+    val size = source.size
+    var i = 0
+    while (i < size) {
+      target.add(source(i))
+      i += 1
+    }
   }
 }

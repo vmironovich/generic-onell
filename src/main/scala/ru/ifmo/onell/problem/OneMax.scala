@@ -34,7 +34,14 @@ class OneMax(size: Int)
     newFitness
   }
 
-  override def unapplyDelta(ind: Array[Boolean], delta: IntArraySet): Unit = for (i <- delta) ind(i) ^= true
+  override def unapplyDelta(ind: Array[Boolean], delta: IntArraySet): Unit = {
+    val size = delta.size
+    var i = 0
+    while (i < size) {
+      ind(delta(i)) ^= true
+      i += 1
+    }
+  }
 
   override def evaluateAssumingDelta(ind: Array[Boolean], delta: IntArraySet, currentFitness: Int): Int = {
     val size = delta.size
