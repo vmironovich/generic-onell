@@ -2,9 +2,11 @@ package ru.ifmo.onell.algorithm
 
 import java.util.concurrent.ThreadLocalRandom
 
+import scala.{specialized => sp}
 import scala.annotation.tailrec
 
 import ru.ifmo.onell.{HasDeltaOperations, HasEvaluation, HasIncrementalEvaluation, HasIndividualOperations, Optimizer}
+import ru.ifmo.onell.util.Specialization.{fitnessSpecialization => fsp}
 
 /**
   * This is an implementation of the "implementation-aware" (1+1) EA, which restarts mutation if zero bits are flipped.
@@ -12,8 +14,8 @@ import ru.ifmo.onell.{HasDeltaOperations, HasEvaluation, HasIncrementalEvaluatio
   * For mutation it uses the representation-dependent default mutation rate, which amounts to =1 change in expectation.
   */
 object OnePlusOneEA extends Optimizer {
-  final def optimize[I, F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
-                             (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Int = {
+  final def optimize[I, @sp(fsp) F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
+                                      (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Int = {
     val problemSize = fitness.problemSize
     val individual = indOps.createStorage(problemSize)
     val delta = deltaOps.createStorage(problemSize)

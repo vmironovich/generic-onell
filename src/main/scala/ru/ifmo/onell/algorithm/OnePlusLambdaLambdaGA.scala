@@ -2,22 +2,26 @@ package ru.ifmo.onell.algorithm
 
 import java.util.concurrent.ThreadLocalRandom
 
+import scala.annotation.tailrec
+import scala.{specialized => sp}
 import scala.util.chaining._
 
 import ru.ifmo.onell.{HasDeltaOperations, HasEvaluation, HasIncrementalEvaluation, HasIndividualOperations, Optimizer}
+import ru.ifmo.onell.util.Specialization.{fitnessSpecialization => fsp}
 import OnePlusLambdaLambdaGA._
 
 class OnePlusLambdaLambdaGA(lambdaTuning: Int => LambdaTuning, constantTuning: ConstantTuning = defaultTuning)
   extends Optimizer
 {
-  override def optimize[I, F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
-                                (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Int = {
+  override def optimize[I, @sp(fsp) F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
+                                         (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Int = {
     val n = fitness.problemSize
     val lambdaP = lambdaTuning(n)
     val rng = ThreadLocalRandom.current()
     val individual = indOps.createStorage(n)
     val mutation, mutationBest, crossover, crossoverBest = deltaOps.createStorage(n)
 
+    @tailrec
     def runMutationsEtc(remaining: Int, baseFitness: F, bestFitness: F, change: Int): (F, Int) = {
       if (remaining == 0) (bestFitness, change) else {
         deltaOps.initializeDeltaWithGivenSize(mutation, n, change, rng)
@@ -31,6 +35,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Int => LambdaTuning, constantTuning: C
       }
     }
 
+    @tailrec
     def runMutations(remaining: Int, baseFitness: F, expectedChange: Double): (F, Int) = {
       val change = deltaOps.initializeDeltaWithDefaultSize(mutation, n, expectedChange, rng)
       if (change == 0) {
@@ -42,6 +47,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Int => LambdaTuning, constantTuning: C
       }
     }
 
+    @tailrec
     def runCrossover(remaining: Int, soFar: Int, baseFitness: F, bestFitness: F,
                      expectedChange: Double, mutantDistance: Int): (F, Int) = {
       if (remaining == 0) (bestFitness, soFar) else {
@@ -64,6 +70,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Int => LambdaTuning, constantTuning: C
       }
     }
 
+    @tailrec
     def iteration(f: F, evaluationsSoFar: Int): Int = if (fitness.isOptimalFitness(f)) evaluationsSoFar else {
       val lambda = lambdaP.lambda
 
