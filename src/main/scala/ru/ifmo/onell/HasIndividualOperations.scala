@@ -2,7 +2,8 @@ package ru.ifmo.onell
 
 import java.util.Random
 
-import ru.ifmo.onell.individual.BitString
+import ru.ifmo.onell.individual.{BitStringOps, PermutationOps}
+import ru.ifmo.onell.util.Permutation
 
 /**
   * This trait encapsulates the knowledge about basic operations with individuals.
@@ -29,5 +30,6 @@ trait HasIndividualOperations[MutableIndividual] {
   * This companion object contains several known implementations of the `HasIndividualOperations` trait.
   */
 object HasIndividualOperations {
-  implicit def forBooleanArray: HasIndividualOperations[Array[Boolean]] = BitString
+  implicit def forBooleanArray: HasIndividualOperations[Array[Boolean]] = BitStringOps
+  implicit def forPermutation: HasIndividualOperations[Permutation] = PermutationOps
 }

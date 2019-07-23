@@ -7,7 +7,7 @@ import ru.ifmo.onell.HasIndividualOperations
 /**
   * This object contains individual operations for bit strings.
   */
-object BitString extends HasIndividualOperations[Array[Boolean]] {
+object BitStringOps extends HasIndividualOperations[Array[Boolean]] {
   override def createStorage(problemSize: Int): Array[Boolean] = new Array(problemSize)
   override def initializeRandomly(individual: Array[Boolean], rng: Random): Unit = {
     val size = individual.length
