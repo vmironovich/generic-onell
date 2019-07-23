@@ -14,13 +14,14 @@ object Main {
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
       "(1+(λ,λ)) GA" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
+      "(1+(λ,λ)) GA log" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedAdaptiveLambda),
     )
     for (n <- 1000 to 10000 by 1000) {
       println(s"n = $n:")
       val oneMax = new OneMax(n)
       for ((name, alg) <- algorithms) {
         val runs = IndexedSeq.fill(100)(alg.optimize(oneMax)).sorted
-        println(f"  $name%12s: ${runs.sum.toDouble / runs.size}%9.2f (min = ${runs.head}%6d, max = ${runs.last}%6d)")
+        println(f"  $name%16s: ${runs.sum.toDouble / runs.size}%9.2f (min = ${runs.head}%6d, max = ${runs.last}%6d)")
       }
       println()
     }
@@ -30,17 +31,22 @@ object Main {
     val algorithms = Seq(
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
-      "(1+(λ,λ)) GA" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.fixedLambda(10)),
+      "(1+(λ,λ)) GA/10" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.fixedLambda(10)),
+      "(1+(λ,λ)) GA log" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedAdaptiveLambda),
+      "(1+(λ,λ)) GA" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
     )
+    println("[")
     for (n <- 100 to 1000 by 100) {
-      println(s"n = $n:")
       val oneMaxPerm = new OneMaxPerm(n)
       for ((name, alg) <- algorithms) {
-        val runs = IndexedSeq.fill(11)(alg.optimize(oneMaxPerm)).sorted
-        println(f"  $name%12s: ${runs.sum.toDouble / runs.size}%9.2f (min = ${runs.head}%6d, max = ${runs.last}%6d)")
+        if (name != algorithms.last._1 || n <= 200) {
+          for (_ <- 0 to 10) {
+            println(s"""{"n":$n,"algorithm":"$name","runtime":${alg.optimize(oneMaxPerm)}},""")
+          }
+        }
       }
-      println()
     }
+    println("{}]")
   }
 
   def main(args: Array[String]): Unit = {
