@@ -2,8 +2,8 @@ package ru.ifmo.onell
 
 import java.util.Random
 
-import ru.ifmo.onell.delta.IntArraySetOps
-import ru.ifmo.onell.util.IntArraySet
+import ru.ifmo.onell.delta.IntSetOps
+import ru.ifmo.onell.util.IntSet
 
 /**
   * This trait encapsulates the knowledge about manipulations with delta representations.
@@ -60,5 +60,5 @@ trait HasDeltaOperations[DeltaRepresentation] {
   * This companion object contains several known implementations of the `HasDeltaOperations` trait.
   */
 object HasDeltaOperations {
-  implicit def forIntArraySet: HasDeltaOperations[IntArraySet] = IntArraySetOps
+  implicit def forIntArraySet: HasDeltaOperations[IntSet] = IntSetOps
 }

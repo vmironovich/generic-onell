@@ -1,11 +1,11 @@
 package ru.ifmo.onell.problem
 
-import ru.ifmo.onell.util.IntArraySet
+import ru.ifmo.onell.util.IntSet
 import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 
 class OneMax(size: Int)
   extends HasEvaluation[Array[Boolean], Int]
-  with HasIncrementalEvaluation[Array[Boolean], IntArraySet, Int]
+  with HasIncrementalEvaluation[Array[Boolean], IntSet, Int]
 {
   override def evaluate(individual: Array[Boolean]): Int = {
     var i, rv = 0
@@ -21,7 +21,7 @@ class OneMax(size: Int)
   override def problemSize: Int = size
   override def isOptimalFitness(fitness: Int): Boolean = fitness == size
 
-  override def applyDelta(ind: Array[Boolean], delta: IntArraySet, currentFitness: Int): Int = {
+  override def applyDelta(ind: Array[Boolean], delta: IntSet, currentFitness: Int): Int = {
     val size = delta.size
     var newFitness = currentFitness
     var i = 0
@@ -34,7 +34,7 @@ class OneMax(size: Int)
     newFitness
   }
 
-  override def unapplyDelta(ind: Array[Boolean], delta: IntArraySet): Unit = {
+  override def unapplyDelta(ind: Array[Boolean], delta: IntSet): Unit = {
     val size = delta.size
     var i = 0
     while (i < size) {
@@ -43,7 +43,7 @@ class OneMax(size: Int)
     }
   }
 
-  override def evaluateAssumingDelta(ind: Array[Boolean], delta: IntArraySet, currentFitness: Int): Int = {
+  override def evaluateAssumingDelta(ind: Array[Boolean], delta: IntSet, currentFitness: Int): Int = {
     val size = delta.size
     var newFitness = currentFitness
     var i = 0

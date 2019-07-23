@@ -3,12 +3,12 @@ package ru.ifmo.onell.delta
 import java.util.Random
 
 import ru.ifmo.onell.HasDeltaOperations
-import ru.ifmo.onell.util.{BinomialScanner, IntArraySet}
+import ru.ifmo.onell.util.{BinomialScanner, IntArraySet, IntSet}
 
-object IntArraySetOps extends HasDeltaOperations[IntArraySet] {
-  override def createStorage(problemSize: Int): IntArraySet = new IntArraySet(problemSize)
+object IntSetOps extends HasDeltaOperations[IntSet] {
+  override def createStorage(problemSize: Int): IntSet = new IntArraySet(problemSize)
 
-  override def initializeDeltaWithDefaultSize(delta: IntArraySet, problemSize: Int, expectedSize: Double, rng: Random): Int = {
+  override def initializeDeltaWithDefaultSize(delta: IntSet, problemSize: Int, expectedSize: Double, rng: Random): Int = {
     delta.clear()
 
     val scanner = BinomialScanner(expectedSize / problemSize)
@@ -21,14 +21,14 @@ object IntArraySetOps extends HasDeltaOperations[IntArraySet] {
     delta.size
   }
 
-  override def initializeDeltaWithGivenSize(delta: IntArraySet, problemSize: Int, size: Int, rng: Random): Unit = {
+  override def initializeDeltaWithGivenSize(delta: IntSet, problemSize: Int, size: Int, rng: Random): Unit = {
     delta.clear()
     while (delta.size < size) {
       delta.add(rng.nextInt(problemSize))
     }
   }
 
-  override def initializeDeltaFromExisting(delta: IntArraySet, source: IntArraySet, expectedSize: Double, rng: Random): Int = {
+  override def initializeDeltaFromExisting(delta: IntSet, source: IntSet, expectedSize: Double, rng: Random): Int = {
     delta.clear()
 
     val sourceSize = source.size
@@ -42,7 +42,7 @@ object IntArraySetOps extends HasDeltaOperations[IntArraySet] {
     delta.size
   }
 
-  override def copyDelta(source: IntArraySet, target: IntArraySet): Unit = {
+  override def copyDelta(source: IntSet, target: IntSet): Unit = {
     target.clear()
     val size = source.size
     var i = 0
