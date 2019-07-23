@@ -19,5 +19,5 @@ trait Optimizer {
     * @return the number of evaluations until an optimum is found.
     */
   def optimize[I, @sp(fsp) F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
-                                (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Int
+                                (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Long
 }

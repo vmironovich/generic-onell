@@ -14,7 +14,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Int => LambdaTuning, constantTuning: C
   extends Optimizer
 {
   override def optimize[I, @sp(fsp) F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
-                                         (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Int = {
+                                         (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Long = {
     val problemSize = fitness.problemSize
     val nChanges = fitness.numberOfChangesForProblemSize(problemSize)
     val lambdaP = lambdaTuning(nChanges)
@@ -72,7 +72,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Int => LambdaTuning, constantTuning: C
     }
 
     @tailrec
-    def iteration(f: F, evaluationsSoFar: Int): Int = if (fitness.isOptimalFitness(f)) evaluationsSoFar else {
+    def iteration(f: F, evaluationsSoFar: Long): Long = if (fitness.isOptimalFitness(f)) evaluationsSoFar else {
       val lambda = lambdaP.lambda
 
       val crossoverProbability = constantTuning.crossoverProbabilityQuotient * 1 / lambda

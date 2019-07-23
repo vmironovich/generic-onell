@@ -15,7 +15,7 @@ import ru.ifmo.onell.util.Specialization.{fitnessSpecialization => fsp}
   */
 object OnePlusOneEA extends Optimizer {
   final def optimize[I, @sp(fsp) F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
-                                      (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Int = {
+                                      (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Long = {
     val problemSize = fitness.problemSize
     val nChanges = fitness.numberOfChangesForProblemSize(problemSize)
     val individual = indOps.createStorage(problemSize)
@@ -23,7 +23,7 @@ object OnePlusOneEA extends Optimizer {
     val rng = ThreadLocalRandom.current()
 
     @tailrec
-    def iterate(f: F, soFar: Int): Int = if (fitness.isOptimalFitness(f)) soFar else {
+    def iterate(f: F, soFar: Long): Long = if (fitness.isOptimalFitness(f)) soFar else {
       val sz = deltaOps.initializeDeltaWithDefaultSize(delta, nChanges, 1, rng)
       if (sz == 0) iterate(f, soFar) else {
         val newF = fitness.applyDelta(individual, delta, f)
