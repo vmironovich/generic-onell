@@ -12,9 +12,9 @@ object IntSetOps extends HasDeltaOperations[IntSet] {
     delta.clear()
 
     val scanner = BinomialScanner(expectedSize / nChanges)
-    var index = scanner.offset(rng) - 1
+    var index = scanner.offset(rng) - 1L
     while (index < nChanges) {
-      delta.add(index)
+      delta.add(index.toInt)
       index += scanner.offset(rng)
     }
 
@@ -34,9 +34,9 @@ object IntSetOps extends HasDeltaOperations[IntSet] {
 
     val sourceSize = source.size
     val scanner = BinomialScanner(expectedSize / sourceSize)
-    var index = scanner.offset(rng) - 1
+    var index = scanner.offset(rng) - 1L
     while (index < sourceSize) {
-      delta.add(source(index))
+      delta.add(source(index.toInt))
       index += scanner.offset(rng)
     }
 
