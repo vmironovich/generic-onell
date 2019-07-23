@@ -12,6 +12,13 @@ import ru.ifmo.onell.util.Specialization.{fitnessSpecialization => fs}
   */
 trait HasIncrementalEvaluation[MutableIndividual, -DeltaRepresentation, @specialized(fs) FitnessValue] {
   /**
+    * Returns the number of possible changes, given the problem size.
+    * @param problemSize the problem size.
+    * @return the number of possible changes.
+    */
+  def numberOfChangesForProblemSize(problemSize: Int): Int
+
+  /**
     * Applies the given delta to the given individual, while simultaneously recomputing the fitness.
     * @param ind the (mutable) individual.
     * @param delta the delta (the description of a change to the individual).

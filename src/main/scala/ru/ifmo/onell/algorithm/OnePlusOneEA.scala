@@ -17,13 +17,14 @@ object OnePlusOneEA extends Optimizer {
   final def optimize[I, @sp(fsp) F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
                                       (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Int = {
     val problemSize = fitness.problemSize
+    val nChanges = fitness.numberOfChangesForProblemSize(problemSize)
     val individual = indOps.createStorage(problemSize)
-    val delta = deltaOps.createStorage(problemSize)
+    val delta = deltaOps.createStorage(nChanges)
     val rng = ThreadLocalRandom.current()
 
     @tailrec
     def iterate(f: F, soFar: Int): Int = if (fitness.isOptimalFitness(f)) soFar else {
-      val sz = deltaOps.initializeDeltaWithDefaultSize(delta, problemSize, 1, rng)
+      val sz = deltaOps.initializeDeltaWithDefaultSize(delta, nChanges, 1, rng)
       if (sz == 0) iterate(f, soFar) else {
         val newF = fitness.applyDelta(individual, delta, f)
         if (fitness.compare(f, newF) <= 0) {

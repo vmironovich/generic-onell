@@ -12,30 +12,30 @@ import ru.ifmo.onell.util.IntSet
   */
 trait HasDeltaOperations[DeltaRepresentation] {
   /**
-    * Creates a new delta representation, given the problem size.
-    * @param problemSize the problem size.
+    * Creates a new delta representation, given the number of possible changes.
+    * @param nChanges the number of possible changes.
     * @return the newly created delta representation.
     */
-  def createStorage(problemSize: Int): DeltaRepresentation
+  def createStorage(nChanges: Int): DeltaRepresentation
 
   /**
     * Initializes the given delta using some default size distribution law.
     * @param delta the delta to be initialized.
-    * @param problemSize the problem size.
+    * @param nChanges the number of possible changes.
     * @param expectedSize the expected delta size.
     * @param rng the random number generator.
     * @return the size of the just-initialized delta.
     */
-  def initializeDeltaWithDefaultSize(delta: DeltaRepresentation, problemSize: Int, expectedSize: Double, rng: Random): Int
+  def initializeDeltaWithDefaultSize(delta: DeltaRepresentation, nChanges: Int, expectedSize: Double, rng: Random): Int
 
   /**
     * Initializes the given delta using the specified delta size.
     * @param delta the delta to be initialized.
-    * @param problemSize the problem size.
+    * @param nChanges the number of possible changes.
     * @param size the size which the delta must have.
     * @param rng the random number generator.
     */
-  def initializeDeltaWithGivenSize(delta: DeltaRepresentation, problemSize: Int, size: Int, rng: Random): Unit
+  def initializeDeltaWithGivenSize(delta: DeltaRepresentation, nChanges: Int, size: Int, rng: Random): Unit
 
   /**
     * Initializes the given delta using some default distribution law, but taking

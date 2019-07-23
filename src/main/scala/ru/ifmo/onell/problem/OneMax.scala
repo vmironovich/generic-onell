@@ -20,6 +20,7 @@ class OneMax(size: Int)
   override def compare(lhs: Int, rhs: Int): Int = lhs - rhs
   override def problemSize: Int = size
   override def isOptimalFitness(fitness: Int): Boolean = fitness == size
+  override def numberOfChangesForProblemSize(problemSize: Int): Int = problemSize
 
   override def applyDelta(ind: Array[Boolean], delta: IntSet, currentFitness: Int): Int = {
     val size = delta.size

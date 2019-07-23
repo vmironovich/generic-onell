@@ -15,16 +15,17 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Int => LambdaTuning, constantTuning: C
 {
   override def optimize[I, @sp(fsp) F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
                                          (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Int = {
-    val n = fitness.problemSize
-    val lambdaP = lambdaTuning(n)
+    val problemSize = fitness.problemSize
+    val nChanges = fitness.numberOfChangesForProblemSize(problemSize)
+    val lambdaP = lambdaTuning(nChanges)
     val rng = ThreadLocalRandom.current()
-    val individual = indOps.createStorage(n)
-    val mutation, mutationBest, crossover, crossoverBest = deltaOps.createStorage(n)
+    val individual = indOps.createStorage(problemSize)
+    val mutation, mutationBest, crossover, crossoverBest = deltaOps.createStorage(nChanges)
 
     @tailrec
     def runMutationsEtc(remaining: Int, baseFitness: F, bestFitness: F, change: Int): (F, Int) = {
       if (remaining == 0) (bestFitness, change) else {
-        deltaOps.initializeDeltaWithGivenSize(mutation, n, change, rng)
+        deltaOps.initializeDeltaWithGivenSize(mutation, nChanges, change, rng)
         val currFitness = fitness.evaluateAssumingDelta(individual, mutation, baseFitness)
         if (fitness.compare(bestFitness, currFitness) < 0) {
           deltaOps.copyDelta(mutation, mutationBest)
@@ -37,7 +38,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Int => LambdaTuning, constantTuning: C
 
     @tailrec
     def runMutations(remaining: Int, baseFitness: F, expectedChange: Double): (F, Int) = {
-      val change = deltaOps.initializeDeltaWithDefaultSize(mutation, n, expectedChange, rng)
+      val change = deltaOps.initializeDeltaWithDefaultSize(mutation, nChanges, expectedChange, rng)
       if (change == 0) {
         runMutations(remaining, baseFitness, expectedChange)
       } else {
