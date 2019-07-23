@@ -8,23 +8,24 @@ import ru.ifmo.onell.util.{BinomialScanner, DenseIntSet, IntSet}
 object IntSetOps extends HasDeltaOperations[IntSet] {
   override def createStorage(problemSize: Int): IntSet = new DenseIntSet(problemSize)
 
-  override def initializeDeltaWithDefaultSize(delta: IntSet, problemSize: Int, expectedSize: Double, rng: Random): Int = {
+  override def initializeDeltaWithDefaultSize(delta: IntSet, nChanges: Int, expectedSize: Double, rng: Random): Int = {
     delta.clear()
 
-    val scanner = BinomialScanner(expectedSize / problemSize)
+    val scanner = BinomialScanner(expectedSize / nChanges)
     var index = scanner.offset(rng) - 1
-    while (index < problemSize) {
+    while (index < nChanges) {
       delta.add(index)
       index += scanner.offset(rng)
     }
 
+    delta.shuffleOrder(rng)
     delta.size
   }
 
-  override def initializeDeltaWithGivenSize(delta: IntSet, problemSize: Int, size: Int, rng: Random): Unit = {
+  override def initializeDeltaWithGivenSize(delta: IntSet, nChanges: Int, size: Int, rng: Random): Unit = {
     delta.clear()
     while (delta.size < size) {
-      delta.add(rng.nextInt(problemSize))
+      delta.add(rng.nextInt(nChanges))
     }
   }
 
@@ -39,6 +40,7 @@ object IntSetOps extends HasDeltaOperations[IntSet] {
       index += scanner.offset(rng)
     }
 
+    delta.shuffleOrder(rng)
     delta.size
   }
 
