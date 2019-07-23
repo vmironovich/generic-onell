@@ -14,7 +14,7 @@ object PermutationOps extends HasIndividualOperations[Permutation] {
     val n = individual.size
     var i = 1
     while (i < n) {
-      val j = rng.nextInt(i)
+      val j = rng.nextInt(i + 1)
       if (i != j) {
         individual.swap(i, j)
       }
