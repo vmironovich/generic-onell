@@ -24,9 +24,6 @@ final class DenseIntSet(maxElement: Int) extends IntSet {
   }
 
   override def add(element: Int): Unit = {
-    if (element < 0 || element >= contained.length) {
-      throw new IndexOutOfBoundsException
-    }
     if (!contained(element)) {
       contained(element) = true
       elements(mySize) = element
