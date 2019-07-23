@@ -3,7 +3,7 @@ package ru.ifmo.onell.problem
 import ru.ifmo.onell.util.IntSet
 import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 
-class OneMax(size: Int)
+class OneMax(val problemSize: Int)
   extends HasEvaluation[Array[Boolean], Int]
   with HasIncrementalEvaluation[Array[Boolean], IntSet, Int]
 {
@@ -18,8 +18,7 @@ class OneMax(size: Int)
   }
 
   override def compare(lhs: Int, rhs: Int): Int = lhs - rhs
-  override def problemSize: Int = size
-  override def isOptimalFitness(fitness: Int): Boolean = fitness == size
+  override def isOptimalFitness(fitness: Int): Boolean = fitness == problemSize
   override def numberOfChangesForProblemSize(problemSize: Int): Int = problemSize
 
   override def applyDelta(ind: Array[Boolean], delta: IntSet, currentFitness: Int): Int = {
