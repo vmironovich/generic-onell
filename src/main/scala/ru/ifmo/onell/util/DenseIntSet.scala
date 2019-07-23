@@ -1,6 +1,6 @@
 package ru.ifmo.onell.util
 
-final class IntArraySet(maxElement: Int) extends IntSet {
+final class DenseIntSet(maxElement: Int) extends IntSet {
   private[this] val contained: Array[Boolean] = Array.ofDim(maxElement)
   private[this] val elements: Array[Int] = Array.ofDim(maxElement)
   private[this] var mySize = 0

@@ -3,10 +3,10 @@ package ru.ifmo.onell.delta
 import java.util.Random
 
 import ru.ifmo.onell.HasDeltaOperations
-import ru.ifmo.onell.util.{BinomialScanner, IntArraySet, IntSet}
+import ru.ifmo.onell.util.{BinomialScanner, DenseIntSet, IntSet}
 
 object IntSetOps extends HasDeltaOperations[IntSet] {
-  override def createStorage(problemSize: Int): IntSet = new IntArraySet(problemSize)
+  override def createStorage(problemSize: Int): IntSet = new DenseIntSet(problemSize)
 
   override def initializeDeltaWithDefaultSize(delta: IntSet, problemSize: Int, expectedSize: Double, rng: Random): Int = {
     delta.clear()
