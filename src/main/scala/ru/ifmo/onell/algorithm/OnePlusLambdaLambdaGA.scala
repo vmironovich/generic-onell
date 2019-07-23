@@ -133,6 +133,7 @@ object OnePlusLambdaLambdaGA {
   }
 
   def defaultAdaptiveLambda(size: Int): LambdaTuning = adaptiveLambda(OneFifthOnSuccess, OneFifthOnFailure, n => n)(size)
+  def logCappedAdaptiveLambda(size: Int): LambdaTuning = adaptiveLambda(OneFifthOnSuccess, OneFifthOnFailure, n => 2 * math.log(n + 1))(size)
 
   case class ConstantTuning(mutationProbabilityQuotient: Double,
                             crossoverProbabilityQuotient: Double,
