@@ -13,9 +13,8 @@ object Main {
     val algorithms = Seq(
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
-      "(1+(λ,λ)) GA" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda)
+      "(1+(λ,λ)) GA" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
     )
-    val t = System.currentTimeMillis()
     for (n <- 1000 to 10000 by 1000) {
       println(s"n = $n:")
       val oneMax = new OneMax(n)
@@ -25,16 +24,14 @@ object Main {
       }
       println()
     }
-    println(System.currentTimeMillis() - t)
   }
 
   private def permOneMaxSimple(): Unit = {
     val algorithms = Seq(
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
-      "(1+(λ,λ)) GA" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.fixedLambda(10))
-      )
-    val t = System.currentTimeMillis()
+      "(1+(λ,λ)) GA" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.fixedLambda(10)),
+    )
     for (n <- 100 to 1000 by 100) {
       println(s"n = $n:")
       val oneMaxPerm = new OneMaxPerm(n)
@@ -44,7 +41,6 @@ object Main {
       }
       println()
     }
-    println(System.currentTimeMillis() - t)
   }
 
   def main(args: Array[String]): Unit = {
