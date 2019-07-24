@@ -1,5 +1,7 @@
 package ru.ifmo.onell
 
+import scala.collection.parallel.CollectionConverters._
+
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
 import ru.ifmo.onell.problem.{OneMax, OneMaxPerm}
 
@@ -27,7 +29,7 @@ object Main {
     }
   }
 
-  private def permOneMaxSimple(): Unit = {
+  private def permOneMaxSimple(nRuns: Int, parallel: Boolean): Unit = {
     val algorithms = Seq(
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
@@ -40,8 +42,17 @@ object Main {
       val oneMaxPerm = new OneMaxPerm(n)
       for ((name, alg) <- algorithms) {
         if (name != algorithms.last._1 || n <= 256) {
-          for (_ <- 0 to 10) {
-            println(s"""{"n":$n,"algorithm":"$name","runtime":${alg.optimize(oneMaxPerm)}},""")
+          def oneRun(): Unit = {
+            val time = alg.optimize(oneMaxPerm)
+            synchronized{
+              println(s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n2":${time.toDouble / n / n}},""")
+            }
+          }
+
+          if (parallel) {
+            for (_ <- (0 until nRuns).par) oneRun()
+          } else {
+            for (_ <- 0 until nRuns) oneRun()
           }
         }
       }
@@ -49,12 +60,21 @@ object Main {
     println("{}]")
   }
 
+  private implicit class Options(val args: Array[String]) extends AnyVal {
+    def getOption(option: String): String = {
+      val index = args.indexOf(option)
+      if (index < 0) throw new IllegalArgumentException(s"No option '$option' is given")
+      if (index + 1 == args.length) throw new IllegalArgumentException(s"Option '$option' should have an argument")
+      args(index + 1)
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     if (args.length == 0) {
       usage()
     } else args(0) match {
       case "bits:om:simple" => bitsOneMaxSimple()
-      case "perm:om:simple" => permOneMaxSimple()
+      case "perm:om:simple" => permOneMaxSimple(args.getOption("--runs").toInt, args.contains("--par"))
       case _ => usage()
     }
   }
