@@ -40,7 +40,6 @@ object IntSetOps extends HasDeltaOperations[IntSet] {
       index += scanner.offset(rng)
     }
 
-    delta.shuffleOrder(rng)
     delta.size
   }
 
