@@ -26,7 +26,7 @@ class OneMax(val problemSize: Int)
     var newFitness = currentFitness
     var i = 0
     while (i < size) {
-      val idx = delta(i)
+      val idx = delta(i).toInt
       newFitness += (if (ind(idx)) -1 else 1)
       ind(idx) ^= true
       i += 1
@@ -38,7 +38,7 @@ class OneMax(val problemSize: Int)
     val size = delta.size
     var i = 0
     while (i < size) {
-      ind(delta(i)) ^= true
+      ind(delta(i).toInt) ^= true
       i += 1
     }
   }
@@ -48,7 +48,7 @@ class OneMax(val problemSize: Int)
     var newFitness = currentFitness
     var i = 0
     while (i < size) {
-      val idx = delta(i)
+      val idx = delta(i).toInt
       newFitness += (if (ind(idx)) -1 else 1)
       i += 1
     }

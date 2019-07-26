@@ -8,8 +8,8 @@ final class DenseIntSet(maxElement: Int) extends IntSet {
   private[this] var mySize = 0
 
   override def size: Int = mySize
-  override def test(element: Int): Boolean = contained(element)
-  override def apply(index: Int): Int = elements(index)
+  override def test(element: Long): Boolean = contained(element.toInt)
+  override def apply(index: Int): Long = elements(index)
 
   override def clear(): Unit = {
     var i = 0
@@ -23,10 +23,11 @@ final class DenseIntSet(maxElement: Int) extends IntSet {
     mySize = 0
   }
 
-  override def add(element: Int): Unit = {
-    if (!contained(element)) {
-      contained(element) = true
-      elements(mySize) = element
+  override def add(element: Long): Unit = {
+    val ei = element.toInt
+    if (!contained(ei)) {
+      contained(ei) = true
+      elements(mySize) = ei
       mySize += 1
     }
   }

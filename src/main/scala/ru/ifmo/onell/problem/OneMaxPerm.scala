@@ -48,10 +48,10 @@ class OneMaxPerm(val problemSize: Int)
 }
 
 object OneMaxPerm {
-  private[problem] def unpack(change: Int): (Int, Int) = {
+  private[problem] def unpack(change: Long): (Int, Int) = {
     val bigger = ((1 + math.sqrt(1 + 8.0 * change)) / 2).toInt
     val smaller = change - bigger * (bigger - 1) / 2
     assert(bigger > smaller)
-    (smaller, bigger)
+    (smaller.toInt, bigger)
   }
 }
