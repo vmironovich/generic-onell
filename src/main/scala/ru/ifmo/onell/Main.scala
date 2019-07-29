@@ -29,7 +29,7 @@ object Main {
     }
   }
 
-  private def permOneMaxSimple(nRuns: Int, parallel: Boolean): Unit = {
+  private def permOneMaxSimple(powers: Range, nRuns: Int, parallel: Boolean): Unit = {
     val algorithms = Seq(
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
@@ -38,7 +38,7 @@ object Main {
       "(1+(λ,λ)) GA" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
     )
     println("[")
-    for (p <- 16 to 16; n = 1 << p) {
+    for (p <- powers; n = 1 << p) {
       val oneMaxPerm = new OneMaxPerm(n)
       for ((name, alg) <- algorithms) {
         if (name != algorithms.last._1 || n <= 256) {
@@ -74,7 +74,10 @@ object Main {
       usage()
     } else args(0) match {
       case "bits:om:simple" => bitsOneMaxSimple()
-      case "perm:om:simple" => permOneMaxSimple(args.getOption("--runs").toInt, args.contains("--par"))
+      case "perm:om:simple" =>
+        permOneMaxSimple(powers   = args.getOption("--from").toInt to args.getOption("--to").toInt,
+                         nRuns    = args.getOption("--runs").toInt,
+                         parallel = args.contains("--par"))
       case _ => usage()
     }
   }
