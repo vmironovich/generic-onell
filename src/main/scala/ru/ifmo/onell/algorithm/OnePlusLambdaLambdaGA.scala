@@ -10,7 +10,7 @@ import ru.ifmo.onell.{HasDeltaOperations, HasEvaluation, HasIncrementalEvaluatio
 import ru.ifmo.onell.util.Specialization.{fitnessSpecialization => fsp}
 import OnePlusLambdaLambdaGA._
 
-class OnePlusLambdaLambdaGA(lambdaTuning: Int => LambdaTuning, constantTuning: ConstantTuning = defaultTuning)
+class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: ConstantTuning = defaultTuning)
   extends Optimizer
 {
   override def optimize[I, @sp(fsp) F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
@@ -115,14 +115,14 @@ object OnePlusLambdaLambdaGA {
     def notifyChildIsWorse(): Unit
   }
 
-  def fixedLambda(value: Double)(size: Int): LambdaTuning = new LambdaTuning {
+  def fixedLambda(value: Double)(size: Long): LambdaTuning = new LambdaTuning {
     override def lambda: Double = value
     override def notifyChildIsBetter(): Unit = {}
     override def notifyChildIsEqual(): Unit = {}
     override def notifyChildIsWorse(): Unit = {}
   }
 
-  def adaptiveLambda(onSuccess: Double, onFailure: Double, threshold: Int => Double)(size: Int): LambdaTuning = new LambdaTuning {
+  def adaptiveLambda(onSuccess: Double, onFailure: Double, threshold: Long => Double)(size: Long): LambdaTuning = new LambdaTuning {
     private[this] var value = 1.0
     private[this] val maxValue = threshold(size)
 
@@ -132,8 +132,8 @@ object OnePlusLambdaLambdaGA {
     override def notifyChildIsWorse(): Unit = value = math.min(maxValue, math.max(1, value * onFailure))
   }
 
-  def defaultAdaptiveLambda(size: Int): LambdaTuning = adaptiveLambda(OneFifthOnSuccess, OneFifthOnFailure, n => n)(size)
-  def logCappedAdaptiveLambda(size: Int): LambdaTuning = adaptiveLambda(OneFifthOnSuccess, OneFifthOnFailure, n => 2 * math.log(n + 1))(size)
+  def defaultAdaptiveLambda(size: Long): LambdaTuning = adaptiveLambda(OneFifthOnSuccess, OneFifthOnFailure, n => n)(size)
+  def logCappedAdaptiveLambda(size: Long): LambdaTuning = adaptiveLambda(OneFifthOnSuccess, OneFifthOnFailure, n => 2 * math.log(n + 1))(size)
 
   case class ConstantTuning(mutationProbabilityQuotient: Double,
                             crossoverProbabilityQuotient: Double,

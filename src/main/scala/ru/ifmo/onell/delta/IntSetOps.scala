@@ -1,20 +1,20 @@
 package ru.ifmo.onell.delta
 
-import java.util.Random
+import java.util.concurrent.{ThreadLocalRandom => Random}
 
 import ru.ifmo.onell.HasDeltaOperations
 import ru.ifmo.onell.util.{BinomialScanner, DenseIntSet, IntSet, SparseIntSet}
 
 object IntSetOps extends HasDeltaOperations[IntSet] {
-  override def createStorage(nChanges: Int): IntSet = {
+  override def createStorage(nChanges: Long): IntSet = {
     if (nChanges <= 1048576) {
-      new DenseIntSet(nChanges)
+      new DenseIntSet(nChanges.toInt)
     } else {
       new SparseIntSet
     }
   }
 
-  override def initializeDeltaWithDefaultSize(delta: IntSet, nChanges: Int, expectedSize: Double, rng: Random): Int = {
+  override def initializeDeltaWithDefaultSize(delta: IntSet, nChanges: Long, expectedSize: Double, rng: Random): Int = {
     delta.clear()
 
     val scanner = BinomialScanner(expectedSize / nChanges)
@@ -28,10 +28,10 @@ object IntSetOps extends HasDeltaOperations[IntSet] {
     delta.size
   }
 
-  override def initializeDeltaWithGivenSize(delta: IntSet, nChanges: Int, size: Int, rng: Random): Unit = {
+  override def initializeDeltaWithGivenSize(delta: IntSet, nChanges: Long, size: Int, rng: Random): Unit = {
     delta.clear()
     while (delta.size < size) {
-      delta.add(rng.nextInt(nChanges))
+      delta.add(rng.nextLong(nChanges))
     }
   }
 

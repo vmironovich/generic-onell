@@ -38,7 +38,7 @@ object Main {
       "(1+(λ,λ)) GA" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
     )
     println("[")
-    for (p <- 4 to 14; n = 1 << p) {
+    for (p <- 16 to 16; n = 1 << p) {
       val oneMaxPerm = new OneMaxPerm(n)
       for ((name, alg) <- algorithms) {
         if (name != algorithms.last._1 || n <= 256) {

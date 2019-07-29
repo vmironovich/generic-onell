@@ -1,6 +1,6 @@
 package ru.ifmo.onell
 
-import java.util.Random
+import java.util.concurrent.{ThreadLocalRandom => Random}
 
 import ru.ifmo.onell.delta.IntSetOps
 import ru.ifmo.onell.util.IntSet
@@ -16,7 +16,7 @@ trait HasDeltaOperations[DeltaRepresentation] {
     * @param nChanges the number of possible changes.
     * @return the newly created delta representation.
     */
-  def createStorage(nChanges: Int): DeltaRepresentation
+  def createStorage(nChanges: Long): DeltaRepresentation
 
   /**
     * Initializes the given delta using some default size distribution law.
@@ -26,7 +26,7 @@ trait HasDeltaOperations[DeltaRepresentation] {
     * @param rng the random number generator.
     * @return the size of the just-initialized delta.
     */
-  def initializeDeltaWithDefaultSize(delta: DeltaRepresentation, nChanges: Int, expectedSize: Double, rng: Random): Int
+  def initializeDeltaWithDefaultSize(delta: DeltaRepresentation, nChanges: Long, expectedSize: Double, rng: Random): Int
 
   /**
     * Initializes the given delta using the specified delta size.
@@ -35,7 +35,7 @@ trait HasDeltaOperations[DeltaRepresentation] {
     * @param size the size which the delta must have.
     * @param rng the random number generator.
     */
-  def initializeDeltaWithGivenSize(delta: DeltaRepresentation, nChanges: Int, size: Int, rng: Random): Unit
+  def initializeDeltaWithGivenSize(delta: DeltaRepresentation, nChanges: Long, size: Int, rng: Random): Unit
 
   /**
     * Initializes the given delta using some default distribution law, but taking

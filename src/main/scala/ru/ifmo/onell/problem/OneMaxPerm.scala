@@ -20,7 +20,7 @@ class OneMaxPerm(val problemSize: Int)
 
   override def compare(lhs: Int, rhs: Int): Int = lhs - rhs
   override def isOptimalFitness(fitness: Int): Boolean = fitness == problemSize
-  override def numberOfChangesForProblemSize(problemSize: Int): Int = problemSize * (problemSize - 1) / 2
+  override def numberOfChangesForProblemSize(problemSize: Int): Long = problemSize * (problemSize - 1L) / 2
 
   override def applyDelta(ind: Permutation, delta: IntSet, currentFitness: Int): Int = {
     var i = 0
@@ -50,8 +50,8 @@ class OneMaxPerm(val problemSize: Int)
 object OneMaxPerm {
   private[problem] def unpack(change: Long): (Int, Int) = {
     val bigger = ((1 + math.sqrt(1 + 8.0 * change)) / 2).toInt
-    val smaller = change - bigger * (bigger - 1) / 2
-    assert(bigger > smaller)
+    val smaller = change - bigger * (bigger - 1L) / 2
+    assert(bigger > smaller, s"change = $change, bigger = $bigger, smaller = $smaller")
     (smaller.toInt, bigger)
   }
 }

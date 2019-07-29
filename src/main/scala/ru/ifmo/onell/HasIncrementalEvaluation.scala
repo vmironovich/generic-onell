@@ -16,7 +16,7 @@ trait HasIncrementalEvaluation[MutableIndividual, -DeltaRepresentation, @special
     * @param problemSize the problem size.
     * @return the number of possible changes.
     */
-  def numberOfChangesForProblemSize(problemSize: Int): Int
+  def numberOfChangesForProblemSize(problemSize: Int): Long
 
   /**
     * Applies the given delta to the given individual, while simultaneously recomputing the fitness.
