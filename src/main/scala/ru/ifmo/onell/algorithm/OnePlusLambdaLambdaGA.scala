@@ -122,6 +122,13 @@ object OnePlusLambdaLambdaGA {
     override def notifyChildIsWorse(): Unit = {}
   }
 
+  def fixedLogLambda(size: Long): LambdaTuning = new LambdaTuning {
+    override def lambda: Double = 2 * math.log(size + 1)
+    override def notifyChildIsBetter(): Unit = {}
+    override def notifyChildIsEqual(): Unit = {}
+    override def notifyChildIsWorse(): Unit = {}
+  }
+
   def adaptiveLambda(onSuccess: Double, onFailure: Double, threshold: Long => Double)(size: Long): LambdaTuning = new LambdaTuning {
     private[this] var value = 1.0
     private[this] val maxValue = threshold(size)
