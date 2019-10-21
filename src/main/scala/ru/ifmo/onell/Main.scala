@@ -6,7 +6,7 @@ import scala.collection.parallel.CollectionConverters._
 import scala.util.Using
 
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
-import ru.ifmo.onell.problem.{OneMax, OneMaxPerm}
+import ru.ifmo.onell.problem.{LinearRandomWeights, OneMax, OneMaxPerm}
 
 object Main {
   private def usage(): Nothing = {
@@ -29,6 +29,26 @@ object Main {
         println(f"  $name%16s: ${runs.sum.toDouble / runs.size}%9.2f (min = ${runs.head}%6d, max = ${runs.last}%6d)")
       }
       println()
+    }
+  }
+
+  private def bitsLinearSimple(): Unit = {
+    val algorithms = Seq(
+      "RLS" -> RLS,
+      "(1+1) EA" -> OnePlusOneEA,
+      "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.fixedLambda(8)),
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda)
+    )
+
+    for ((name, alg) <- algorithms) {
+      print("\\addplot coordinates{")
+      for (n <- (4 to 11).map(i => math.pow(10, i / 2.0).toInt)) {
+        val runs = (0 until 100).par.map(_ => alg.optimize(new LinearRandomWeights(n, 2))).seq
+        val result = runs.sum.toDouble / runs.size / n
+        print(s"($n,$result)")
+      }
+      println("};")
+      println(s"\\addlegendentry{$name};")
     }
   }
 
@@ -84,6 +104,7 @@ object Main {
       usage()
     } else args(0) match {
       case "bits:om:simple" => bitsOneMaxSimple()
+      case "bits:l2:simple" => bitsLinearSimple()
       case "perm:om:simple" =>
         permOneMaxSimple(powers   = args.getOption("--from").toInt to args.getOption("--to").toInt,
                          nRuns    = args.getOption("--runs").toInt,
