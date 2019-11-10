@@ -14,7 +14,7 @@ object Main {
     sys.exit()
   }
 
-  private def bitsOneMaxSimple(): Unit = {
+  private def bitsOneMaxSimple(powers: Range, nRuns: Int, parallel: Boolean, outName: String): Unit = {
     val algorithms = Seq(
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
@@ -22,16 +22,21 @@ object Main {
       "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedAdaptiveLambda),
       "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.1)),
       "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.5)),
+      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.7)),
       "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.9)),
-      )
+    )
 
-    Using.resource(new PrintWriter("onemax.json")) { moreOut =>
+    Using.resource(new PrintWriter(outName)) { moreOut =>
       moreOut.println("[")
-      for (p <- 5 to 20; n = 1 << p) {
+      for (p <- powers; n = 1 << p) {
         println(s"n = $n:")
         val oneMax = new OneMax(n)
         for ((name, alg) <- algorithms) {
-          val runs = IndexedSeq.fill(100)(alg.optimize(oneMax)).sorted
+          val runs = if (parallel) {
+            (0 until nRuns).par.map(_ => alg.optimize(oneMax)).seq.sorted
+          } else {
+            (0 until nRuns).map(_ => alg.optimize(oneMax)).sorted
+          }
           for (time <- runs) {
             val line = s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}},"""
             moreOut.println(line)
@@ -115,7 +120,11 @@ object Main {
     if (args.length == 0) {
       usage()
     } else args(0) match {
-      case "bits:om:simple" => bitsOneMaxSimple()
+      case "bits:om:simple" =>
+        bitsOneMaxSimple(powers   = args.getOption("--from").toInt to args.getOption("--to").toInt,
+                         nRuns    = args.getOption("--runs").toInt,
+                         parallel = args.contains("--par"),
+                         outName  = args.getOption("--out"))
       case "bits:l2:simple" => bitsLinearSimple()
       case "perm:om:simple" =>
         permOneMaxSimple(powers   = args.getOption("--from").toInt to args.getOption("--to").toInt,

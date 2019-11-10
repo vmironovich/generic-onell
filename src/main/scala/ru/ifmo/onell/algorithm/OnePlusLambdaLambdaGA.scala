@@ -131,16 +131,14 @@ object OnePlusLambdaLambdaGA {
   }
 
   def powerLawLambda(beta: Double)(size: Long): LambdaTuning = new LambdaTuning {
-    private[this] val weights = collectWeightsUntilThreshold(beta, 1, size, Array.newBuilder[Double])
-    private[this] val sum = weights.sum
+    private[this] val weights = collectWeightsUntilThreshold(beta, 1, size, 0, Array.newBuilder[Double])
 
-    @tailrec
-    private[this] def getLambda(current: Int, sumSoFar: Double): Long = {
-      val currWeight = weights(current - 1)
-      if (currWeight >= sumSoFar || current == weights.length) current else getLambda(current + 1, sumSoFar - currWeight)
+    override def lambda(rng: ThreadLocalRandom): Double = {
+      val query = weights.last * rng.nextDouble()
+      val index0 = java.util.Arrays.binarySearch(weights, query)
+      val index = if (index0 >= 0) index0 else -index0 - 1
+      index + 1 // since index=0 corresponds to lambda=1
     }
-
-    override def lambda(rng: ThreadLocalRandom): Double = getLambda(1, rng.nextDouble() * sum)
     override def notifyChildIsBetter(): Unit = {}
     override def notifyChildIsEqual(): Unit = {}
     override def notifyChildIsWorse(): Unit = {}
@@ -169,12 +167,12 @@ object OnePlusLambdaLambdaGA {
   final val OneFifthOnFailure = math.pow(1.5, 0.25)
 
   @tailrec
-  private[this] def collectWeightsUntilThreshold(beta: Double, index: Long, size: Long,
+  private[this] def collectWeightsUntilThreshold(beta: Double, index: Long, size: Long, cumulative: Double,
                                                  weights: mutable.ArrayBuilder[Double]): Array[Double] = {
-    val addend = math.pow(beta, -index)
+    val addend = cumulative + math.pow(index, -beta)
     if (index > size || addend == 0) weights.result() else {
       weights += addend
-      collectWeightsUntilThreshold(beta, index + 1, size, weights)
+      collectWeightsUntilThreshold(beta, index + 1, size, addend, weights)
     }
   }
 }
