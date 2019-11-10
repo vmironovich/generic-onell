@@ -3,6 +3,7 @@ package ru.ifmo.onell.algorithm
 import java.util.concurrent.ThreadLocalRandom
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.{specialized => sp}
 import scala.util.chaining._
 
@@ -73,7 +74,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
 
     @tailrec
     def iteration(f: F, evaluationsSoFar: Long): Long = if (fitness.isOptimalFitness(f)) evaluationsSoFar else {
-      val lambda = lambdaP.lambda
+      val lambda = lambdaP.lambda(rng)
 
       val crossoverProbability = constantTuning.crossoverProbabilityQuotient * 1 / lambda
 
@@ -109,21 +110,37 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
 
 object OnePlusLambdaLambdaGA {
   trait LambdaTuning {
-    def lambda: Double
+    def lambda(rng: ThreadLocalRandom): Double
     def notifyChildIsBetter(): Unit
     def notifyChildIsEqual(): Unit
     def notifyChildIsWorse(): Unit
   }
 
   def fixedLambda(value: Double)(size: Long): LambdaTuning = new LambdaTuning {
-    override def lambda: Double = value
+    override def lambda(rng: ThreadLocalRandom): Double = value
     override def notifyChildIsBetter(): Unit = {}
     override def notifyChildIsEqual(): Unit = {}
     override def notifyChildIsWorse(): Unit = {}
   }
 
   def fixedLogLambda(size: Long): LambdaTuning = new LambdaTuning {
-    override def lambda: Double = 2 * math.log(size + 1)
+    override def lambda(rng: ThreadLocalRandom): Double = 2 * math.log(size + 1)
+    override def notifyChildIsBetter(): Unit = {}
+    override def notifyChildIsEqual(): Unit = {}
+    override def notifyChildIsWorse(): Unit = {}
+  }
+
+  def powerLawLambda(beta: Double)(size: Long): LambdaTuning = new LambdaTuning {
+    private[this] val weights = collectWeightsUntilThreshold(beta, 1, size, Array.newBuilder[Double])
+    private[this] val sum = weights.sum
+
+    @tailrec
+    private[this] def getLambda(current: Int, sumSoFar: Double): Long = {
+      val currWeight = weights(current - 1)
+      if (currWeight >= sumSoFar || current == weights.length) current else getLambda(current + 1, sumSoFar - currWeight)
+    }
+
+    override def lambda(rng: ThreadLocalRandom): Double = getLambda(1, rng.nextDouble() * sum)
     override def notifyChildIsBetter(): Unit = {}
     override def notifyChildIsEqual(): Unit = {}
     override def notifyChildIsWorse(): Unit = {}
@@ -133,7 +150,7 @@ object OnePlusLambdaLambdaGA {
     private[this] var value = 1.0
     private[this] val maxValue = threshold(size)
 
-    override def lambda: Double = value
+    override def lambda(rng: ThreadLocalRandom): Double = value
     override def notifyChildIsBetter(): Unit = value = math.min(maxValue, math.max(1, value * onSuccess))
     override def notifyChildIsEqual(): Unit = notifyChildIsWorse()
     override def notifyChildIsWorse(): Unit = value = math.min(maxValue, math.max(1, value * onFailure))
@@ -150,4 +167,14 @@ object OnePlusLambdaLambdaGA {
   final val defaultTuning = ConstantTuning(1.0, 1.0, 1.0, 1.0)
   final val OneFifthOnSuccess = 1 / 1.5
   final val OneFifthOnFailure = math.pow(1.5, 0.25)
+
+  @tailrec
+  private[this] def collectWeightsUntilThreshold(beta: Double, index: Long, size: Long,
+                                                 weights: mutable.ArrayBuilder[Double]): Array[Double] = {
+    val addend = math.pow(beta, -index)
+    if (index > size || addend == 0) weights.result() else {
+      weights += addend
+      collectWeightsUntilThreshold(beta, index + 1, size, weights)
+    }
+  }
 }

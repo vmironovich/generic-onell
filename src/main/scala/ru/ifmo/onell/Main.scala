@@ -10,7 +10,7 @@ import ru.ifmo.onell.problem.{LinearRandomWeights, OneMax, OneMaxPerm}
 
 object Main {
   private def usage(): Nothing = {
-    System.err.println("Usage: Main <bits:om:simple | perm:om:simple>")
+    System.err.println("Usage: Main <bits:om:simple | bits:l2:simple | perm:om:simple>")
     sys.exit()
   }
 
@@ -18,17 +18,29 @@ object Main {
     val algorithms = Seq(
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
-      "(1+(λ,λ)) GA" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
-      "(1+(λ,λ)) GA log" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedAdaptiveLambda),
-    )
-    for (n <- 1000 to 10000 by 1000) {
-      println(s"n = $n:")
-      val oneMax = new OneMax(n)
-      for ((name, alg) <- algorithms) {
-        val runs = IndexedSeq.fill(100)(alg.optimize(oneMax)).sorted
-        println(f"  $name%16s: ${runs.sum.toDouble / runs.size}%9.2f (min = ${runs.head}%6d, max = ${runs.last}%6d)")
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedAdaptiveLambda),
+      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.1)),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.5)),
+      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.9)),
+      )
+
+    Using.resource(new PrintWriter("onemax.json")) { moreOut =>
+      moreOut.println("[")
+      for (p <- 5 to 20; n = 1 << p) {
+        println(s"n = $n:")
+        val oneMax = new OneMax(n)
+        for ((name, alg) <- algorithms) {
+          val runs = IndexedSeq.fill(100)(alg.optimize(oneMax)).sorted
+          for (time <- runs) {
+            val line = s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}},"""
+            moreOut.println(line)
+          }
+          println(f"  $name%25s: ${runs.sum.toDouble / runs.size}%9.2f (min = ${runs.head}%6d, max = ${runs.last}%6d)")
+        }
+        println()
       }
-      println()
+      moreOut.println("{}]")
     }
   }
 
