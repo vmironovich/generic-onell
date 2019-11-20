@@ -1,6 +1,7 @@
 package ru.ifmo.onell
 
 import java.io.PrintWriter
+import java.util.concurrent.{Executors, TimeUnit}
 
 import scala.collection.parallel.CollectionConverters._
 import scala.util.Using
@@ -12,6 +13,41 @@ object Main {
   private def usage(): Nothing = {
     System.err.println("Usage: Main <bits:om:simple | bits:l2:simple | perm:om:simple>")
     sys.exit()
+  }
+
+  trait Scheduler {
+    def start(): Unit
+    def addTask(fun: => String): Unit
+    def finish(): Unit
+  }
+
+  class SingleThreaded(pw: PrintWriter, firstLine: String, lastLine: String) extends Scheduler {
+    override def start(): Unit = pw.println(firstLine)
+    override def addTask(fun: => String): Unit = {
+      pw.println(fun)
+      pw.flush()
+      println(fun)
+    }
+    override def finish(): Unit = pw.println(lastLine)
+  }
+
+  class MultiThreaded(pw: PrintWriter, firstLine: String, lastLine: String) extends Scheduler {
+    private[this] val lock = new AnyRef
+    private val pool = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
+    override def start(): Unit = pw.println(firstLine)
+    override def addTask(fun: => String): Unit = pool.execute(() => {
+      val line = fun
+      lock synchronized {
+        pw.println(line)
+        pw.flush()
+        println(line)
+      }
+    })
+    override def finish(): Unit = {
+      pool.awaitTermination(365, TimeUnit.DAYS)
+      pool.shutdown()
+      pw.println(lastLine)
+    }
   }
 
   private def bitsOneMaxSimple(powers: Range, nRuns: Int, parallel: Boolean, outName: String): Unit = {
@@ -27,25 +63,24 @@ object Main {
     )
 
     Using.resource(new PrintWriter(outName)) { moreOut =>
-      moreOut.println("[")
+      val scheduler = if (parallel) {
+        new MultiThreaded(moreOut, "[{}", "]")
+      } else {
+        new SingleThreaded(moreOut, "[{}", "]")
+      }
+      scheduler.start()
       for (p <- powers; n = 1 << p) {
-        println(s"n = $n:")
         val oneMax = new OneMax(n)
         for ((name, alg) <- algorithms) {
-          val runs = if (parallel) {
-            (0 until nRuns).par.map(_ => alg.optimize(oneMax)).seq.sorted
-          } else {
-            (0 until nRuns).map(_ => alg.optimize(oneMax)).sorted
+          for (_ <- 0 until nRuns) {
+            scheduler addTask {
+              val time = alg.optimize(oneMax)
+              s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+            }
           }
-          for (time <- runs) {
-            val line = s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}},"""
-            moreOut.println(line)
-          }
-          println(f"  $name%25s: ${runs.sum.toDouble / runs.size}%9.2f (min = ${runs.head}%6d, max = ${runs.last}%6d)")
         }
-        println()
       }
-      moreOut.println("{}]")
+      scheduler.finish()
     }
   }
 
