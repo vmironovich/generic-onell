@@ -24,9 +24,10 @@ object Main {
   class SingleThreaded(pw: PrintWriter, firstLine: String, lastLine: String) extends Scheduler {
     override def start(): Unit = pw.println(firstLine)
     override def addTask(fun: => String): Unit = {
-      pw.println(fun)
+      val line = fun
+      pw.println(line)
       pw.flush()
-      println(fun)
+      println(line)
     }
     override def finish(): Unit = pw.println(lastLine)
   }
@@ -44,8 +45,8 @@ object Main {
       }
     })
     override def finish(): Unit = {
-      pool.awaitTermination(365, TimeUnit.DAYS)
       pool.shutdown()
+      pool.awaitTermination(365, TimeUnit.DAYS)
       pw.println(lastLine)
     }
   }
