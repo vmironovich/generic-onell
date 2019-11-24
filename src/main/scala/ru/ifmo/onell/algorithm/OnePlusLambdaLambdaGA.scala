@@ -1,6 +1,6 @@
 package ru.ifmo.onell.algorithm
 
-import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.{ThreadLocalRandom => Random}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -19,7 +19,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
     val problemSize = fitness.problemSize
     val nChanges = fitness.numberOfChangesForProblemSize(problemSize)
     val lambdaP = lambdaTuning(nChanges)
-    val rng = ThreadLocalRandom.current()
+    val rng = Random.current()
     val individual = indOps.createStorage(problemSize)
     val mutation, mutationBest, crossover, crossoverBest = deltaOps.createStorage(nChanges)
 
@@ -110,21 +110,21 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
 
 object OnePlusLambdaLambdaGA {
   trait LambdaTuning {
-    def lambda(rng: ThreadLocalRandom): Double
+    def lambda(rng: Random): Double
     def notifyChildIsBetter(): Unit
     def notifyChildIsEqual(): Unit
     def notifyChildIsWorse(): Unit
   }
 
   def fixedLambda(value: Double)(size: Long): LambdaTuning = new LambdaTuning {
-    override def lambda(rng: ThreadLocalRandom): Double = value
+    override def lambda(rng: Random): Double = value
     override def notifyChildIsBetter(): Unit = {}
     override def notifyChildIsEqual(): Unit = {}
     override def notifyChildIsWorse(): Unit = {}
   }
 
   def fixedLogLambda(size: Long): LambdaTuning = new LambdaTuning {
-    override def lambda(rng: ThreadLocalRandom): Double = 2 * math.log(size + 1)
+    override def lambda(rng: Random): Double = 2 * math.log(size + 1)
     override def notifyChildIsBetter(): Unit = {}
     override def notifyChildIsEqual(): Unit = {}
     override def notifyChildIsWorse(): Unit = {}
@@ -133,7 +133,7 @@ object OnePlusLambdaLambdaGA {
   def powerLawLambda(beta: Double)(size: Long): LambdaTuning = new LambdaTuning {
     private[this] val weights = collectWeightsUntilThreshold(beta, 1, size, 0, Array.newBuilder[Double])
 
-    override def lambda(rng: ThreadLocalRandom): Double = {
+    override def lambda(rng: Random): Double = {
       val query = weights.last * rng.nextDouble()
       val index0 = java.util.Arrays.binarySearch(weights, query)
       val index = if (index0 >= 0) index0 else -index0 - 1
@@ -148,7 +148,7 @@ object OnePlusLambdaLambdaGA {
     private[this] var value = 1.0
     private[this] val maxValue = threshold(size)
 
-    override def lambda(rng: ThreadLocalRandom): Double = value
+    override def lambda(rng: Random): Double = value
     override def notifyChildIsBetter(): Unit = value = math.min(maxValue, math.max(1, value * onSuccess))
     override def notifyChildIsEqual(): Unit = notifyChildIsWorse()
     override def notifyChildIsWorse(): Unit = value = math.min(maxValue, math.max(1, value * onFailure))

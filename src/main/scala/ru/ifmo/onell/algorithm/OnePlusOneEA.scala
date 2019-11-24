@@ -1,6 +1,6 @@
 package ru.ifmo.onell.algorithm
 
-import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.{ThreadLocalRandom => Random}
 
 import scala.{specialized => sp}
 import scala.annotation.tailrec
@@ -20,7 +20,7 @@ object OnePlusOneEA extends Optimizer {
     val nChanges = fitness.numberOfChangesForProblemSize(problemSize)
     val individual = indOps.createStorage(problemSize)
     val delta = deltaOps.createStorage(nChanges)
-    val rng = ThreadLocalRandom.current()
+    val rng = Random.current()
 
     @tailrec
     def iterate(f: F, soFar: Long): Long = if (fitness.isOptimalFitness(f)) soFar else {
