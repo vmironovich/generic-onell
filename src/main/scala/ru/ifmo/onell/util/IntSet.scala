@@ -4,7 +4,6 @@ import java.util.Random
 
 trait IntSet {
   def size: Int
-  def test(element: Long): Boolean
   def apply(index: Int): Long
   def clear(): Unit
   def add(element: Long): Unit

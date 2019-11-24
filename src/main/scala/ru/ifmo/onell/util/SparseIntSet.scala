@@ -11,7 +11,6 @@ class SparseIntSet extends IntSet {
 
   override def size: Int = nElements
 
-  override def test(element: Long): Boolean = elementSet.contains(element)
   override def apply(index: Int): Long = elements(index)
 
   override def clear(): Unit = {

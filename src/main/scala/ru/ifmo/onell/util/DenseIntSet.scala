@@ -8,7 +8,6 @@ final class DenseIntSet(maxElement: Int) extends IntSet {
   private[this] var mySize = 0
 
   override def size: Int = mySize
-  override def test(element: Long): Boolean = contained(element.toInt)
   override def apply(index: Int): Long = elements(index)
 
   override def clear(): Unit = {
