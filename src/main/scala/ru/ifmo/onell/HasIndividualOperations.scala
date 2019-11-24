@@ -1,6 +1,6 @@
 package ru.ifmo.onell
 
-import java.util.Random
+import java.util.concurrent.{ThreadLocalRandom => Random}
 
 import ru.ifmo.onell.individual.{BitStringOps, PermutationOps}
 import ru.ifmo.onell.util.Permutation

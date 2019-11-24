@@ -1,6 +1,6 @@
 package ru.ifmo.onell.individual
 
-import java.util.Random
+import java.util.concurrent.{ThreadLocalRandom => Random}
 
 import ru.ifmo.onell.HasIndividualOperations
 
