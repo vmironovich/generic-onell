@@ -7,7 +7,7 @@ lazy val commonSettings = Seq(
 )
 
 lazy val scalaPar   = "org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0"
-lazy val scalaTest  = "org.scalatest" %% "scalatest" % "3.0.8" % Test
+lazy val scalaTest  = "org.scalatest" %% "scalatest" % "3.1.0" % Test
 
 lazy val root = project
   .in(file("."))

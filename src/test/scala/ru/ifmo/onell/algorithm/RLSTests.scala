@@ -2,10 +2,11 @@ package ru.ifmo.onell.algorithm
 
 import scala.Ordering.Double.IeeeOrdering
 
-import org.scalatest.{FlatSpec, Matchers}
 import ru.ifmo.onell.problem.OneMax
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class RLSTests extends FlatSpec with Matchers {
+class RLSTests extends AnyFlatSpec with Matchers {
   "RLS" should "perform as expected on OneMax" in {
     val size = 200
     val om = new OneMax(size)
