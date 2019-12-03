@@ -59,7 +59,7 @@ class HierarchicIntSet(maxElement: Long) extends IntSet {
     }
     if (!subArray(lo)) {
       subArray(lo) = true
-      if (elementCount == elementsInOrder.size) {
+      if (elementCount == elementsInOrder.length) {
         elementsInOrder = JArrays.copyOf(elementsInOrder, 2 * elementCount)
       }
       elementsInOrder(elementCount) = element

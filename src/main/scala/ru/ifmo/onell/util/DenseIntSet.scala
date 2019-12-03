@@ -8,7 +8,7 @@ final class DenseIntSet(maxElement: Int) extends IntSet {
   private[this] var mySize = 0
 
   override def size: Int = mySize
-  override def apply(index: Int): Long = elements(index)
+  override def apply(index: Int): Long = applyAsInt(index)
 
   override def clear(): Unit = {
     var i = 0
@@ -22,14 +22,7 @@ final class DenseIntSet(maxElement: Int) extends IntSet {
     mySize = 0
   }
 
-  override def add(element: Long): Unit = {
-    val ei = element.toInt
-    if (!contained(ei)) {
-      contained(ei) = true
-      elements(mySize) = ei
-      mySize += 1
-    }
-  }
+  override def add(element: Long): Unit = add(element.toInt)
 
   override def shuffleOrder(rng: Random): Unit = {
     var i = 1
@@ -43,4 +36,17 @@ final class DenseIntSet(maxElement: Int) extends IntSet {
       i += 1
     }
   }
+
+  // Int-specific methods.
+
+  def applyAsInt(index: Int): Int = elements(index)
+  def add(element: Int): Unit = {
+    val ei = element.toInt
+    if (!contained(ei)) {
+      contained(ei) = true
+      elements(mySize) = ei
+      mySize += 1
+    }
+  }
+
 }
