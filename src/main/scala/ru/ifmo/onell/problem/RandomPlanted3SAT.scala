@@ -2,7 +2,7 @@ package ru.ifmo.onell.problem
 
 import java.util.concurrent.ThreadLocalRandom
 
-import ru.ifmo.onell.util.IntSet
+import ru.ifmo.onell.util.{DenseIntSet, Helpers, IntSet}
 import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 
 import scala.annotation.tailrec
@@ -16,12 +16,15 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int)
   private[this] val clausesOfVariableOffset = new Array[Int](problemSize + 1)
   private[this] val clausesOfVariableContent = new Array[Int](clauseCount * 3)
 
+  private[this] val usedClauses = new DenseIntSet(clauseCount)
+
   // initialization
   generateClauses(0, ThreadLocalRandom.current())
   makePartialSums(0)
   populateClausesOfVariableContent(0)
 
-  private[this] def isClauseSatisfied(clauseOffset: Int, solution: Array[Boolean]): Boolean = {
+  private[this] def isClauseSatisfied(clauseIndex: Int, solution: Array[Boolean]): Boolean = {
+    val clauseOffset = 3 * clauseIndex
     val i0 = clauseOffset
     val i1 = clauseOffset + 1
     val i2 = clauseOffset + 2
@@ -31,7 +34,8 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int)
   }
 
   @tailrec
-  private[this] def generateClauses(offset: Int, rng: ThreadLocalRandom): Unit = if (offset < clauseVal.length) {
+  private[this] def generateClauses(clauseIdx: Int, rng: ThreadLocalRandom): Unit = if (clauseIdx < clauseCount) {
+    val offset = 3 * clauseIdx
     clauseVar(offset) = rng.nextInt(problemSize)
     clauseVar(offset + 1) = rng.nextInt(problemSize)
     clauseVar(offset + 2) = rng.nextInt(problemSize)
@@ -42,9 +46,9 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int)
       clausesOfVariableOffset(clauseVar(offset)) += 1
       clausesOfVariableOffset(clauseVar(offset + 1)) += 1
       clausesOfVariableOffset(clauseVar(offset + 2)) += 1
-      generateClauses(offset + 3, rng)
+      generateClauses(clauseIdx + 1, rng)
     } else {
-      generateClauses(offset, rng)
+      generateClauses(clauseIdx, rng)
     }
   }
 
@@ -59,7 +63,7 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int)
     val variable = clauseVar(i)
     val offset = clausesOfVariableOffset(variable) - 1
     clausesOfVariableOffset(variable) = offset
-    clausesOfVariableContent(offset) = (i / 3) * 3
+    clausesOfVariableContent(offset) = i / 3
     populateClausesOfVariableContent(i + 1)
   }
 
@@ -68,24 +72,36 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int)
   override def numberOfChangesForProblemSize(problemSize: Int): Long = problemSize
 
   override def evaluate(individual: Array[Boolean]): Int = {
-    (0 until clauseCount).count(i => isClauseSatisfied(3 * i, individual))
+    (0 until clauseCount).count(i => isClauseSatisfied(i, individual))
   }
 
-  /**
-    * Applies the given delta to the given individual, while simultaneously recomputing the fitness.
-    *
-    * @param ind            the (mutable) individual.
-    * @param delta          the delta (the description of a change to the individual).
-    * @param currentFitness the fitness of the individual before applying the change.
-    * @return the new fitness after applying the change; the individual is also changed when the method returns.
-    */
-  override def applyDelta(ind: Array[Boolean], delta: IntSet, currentFitness: Int): Int = ???
+  override def applyDelta(ind: Array[Boolean], delta: IntSet, currentFitness: Int): Int = {
+    val size = delta.size
+    var i = 0
+    while (i < size) {
+      val d = delta(i).toInt
+      var j = clausesOfVariableOffset(d)
+      val jMax = clausesOfVariableOffset(d + 1)
+      while (j < jMax) {
+        usedClauses.add(clausesOfVariableContent(j))
+        j += 1
+      }
+      i += 1
+    }
+    val satBefore = countSatisfiedClauses(usedClauses, ind)
+    Helpers.flipEachBit(ind, delta)
+    currentFitness - satBefore + countSatisfiedClauses(usedClauses, ind)
+  }
 
-  /**
-    * Unapplies the given delta to the given individual.
-    *
-    * @param ind   the (mutable) individual, which has previously experienced applying exactly the same delta.
-    * @param delta the delta to be unapplied.
-    */
-  override def unapplyDelta(ind: Array[Boolean], delta: IntSet): Unit = ???
+  override def unapplyDelta(ind: Array[Boolean], delta: IntSet): Unit = Helpers.flipEachBit(ind, delta)
+
+  private def countSatisfiedClauses(clauseIndices: IntSet, individual: Array[Boolean]): Int = {
+    var f = 0
+    var i = clauseIndices.size - 1
+    while (i >= 0) {
+      f += (if (isClauseSatisfied(usedClauses.applyAsInt(i), individual)) 1 else 0)
+      i -= 1
+    }
+    f
+  }
 }
