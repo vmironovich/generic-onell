@@ -1,8 +1,9 @@
 package ru.ifmo.onell.problem
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class OneMaxPermTests extends FlatSpec with Matchers {
+class OneMaxPermTests extends AnyFlatSpec with Matchers {
   "OneMaxPerm.unpack" should "work correctly for small inputs" in {
     var change = 0
     var big = 1
