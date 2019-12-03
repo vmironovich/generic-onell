@@ -1,6 +1,6 @@
 package ru.ifmo.onell.problem
 
-import ru.ifmo.onell.util.IntSet
+import ru.ifmo.onell.util.{Helpers, IntSet}
 import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 
 class OneMax(val problemSize: Int)
@@ -34,14 +34,7 @@ class OneMax(val problemSize: Int)
     newFitness
   }
 
-  override def unapplyDelta(ind: Array[Boolean], delta: IntSet): Unit = {
-    val size = delta.size
-    var i = 0
-    while (i < size) {
-      ind(delta(i).toInt) ^= true
-      i += 1
-    }
-  }
+  override def unapplyDelta(ind: Array[Boolean], delta: IntSet): Unit = Helpers.flipEachBit(ind, delta)
 
   override def evaluateAssumingDelta(ind: Array[Boolean], delta: IntSet, currentFitness: Int): Int = {
     val size = delta.size
