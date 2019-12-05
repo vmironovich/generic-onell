@@ -76,7 +76,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
     def iteration(f: F, evaluationsSoFar: Long): Long = if (fitness.isOptimalFitness(f)) evaluationsSoFar else {
       val lambda = lambdaP.lambda(rng)
 
-      val crossoverProbability = constantTuning.crossoverProbabilityQuotient * 1 / lambda
+      val crossoverProbability = constantTuning.crossoverProbabilityQuotient * (1.0 / lambda)
 
       val mutationExpectedChanges = constantTuning.mutationProbabilityQuotient * lambda
       val mutationPopSize = math.max(1, (lambda * constantTuning.firstPopulationSizeQuotient).toInt)
