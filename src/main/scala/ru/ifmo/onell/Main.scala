@@ -13,7 +13,11 @@ object Main {
     sys.exit()
   }
 
-  private class Context(powers: Range, nRuns: Int, isParallel: Boolean, outName: String) {
+  private class Context(powers: Range, nRuns: Int, nThreads: Int, outName: String) {
+    private[this] val jsonPrefix = "["
+    private[this] val jsonSeparator = "\n,"
+    private[this] val jsonSuffix = "\n]\n"
+
     def run(fun: (Scheduler, Int) => Any): Unit = {
       Using.resource(new PrintWriter(outName)) { moreOut =>
         Using.resource(makeScheduler(moreOut)) { scheduler =>
@@ -25,10 +29,10 @@ object Main {
       }
     }
 
-    private def makeScheduler(moreOut: PrintWriter): Scheduler = if (isParallel) {
-      new MultiThreaded(moreOut, "[{}", "]")
+    private def makeScheduler(moreOut: PrintWriter): Scheduler = if (nThreads == 1) {
+      new SingleThreaded(moreOut, jsonPrefix, jsonSeparator, jsonSuffix)
     } else {
-      new SingleThreaded(moreOut, "[{}", "]")
+      new MultiThreaded(moreOut, jsonPrefix, jsonSeparator, jsonSuffix, nThreads)
     }
   }
 
@@ -45,33 +49,38 @@ object Main {
     }
   }
 
-  private class SingleThreaded(pw: PrintWriter, firstLine: String, lastLine: String) extends Scheduler {
-    pw.println(firstLine)
+  private class SingleThreaded(pw: PrintWriter, prefix: String, sep: String, suffix: String) extends Scheduler {
+    private[this] var isFirst = true
     override def addTask(fun: => String): Unit = {
-      val line = fun
-      pw.println(line)
+      val line = (if (isFirst) prefix else sep) + fun
+      isFirst = false
+      pw.print(line)
       pw.flush()
-      println(line)
+      print(line)
     }
-    override def close(): Unit = pw.println(lastLine)
+    override def close(): Unit = pw.print(suffix)
   }
 
-  private class MultiThreaded(pw: PrintWriter, firstLine: String, lastLine: String) extends Scheduler {
+  private class MultiThreaded(pw: PrintWriter, prefix: String, sep: String, suffix: String, nThreads: Int) extends Scheduler {
     private[this] val lock = new AnyRef
-    private val pool = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
-    pw.println(firstLine)
+    private[this] var isFirst = true
+    private[this] val nCPUs = if (nThreads >= 1) nThreads else Runtime.getRuntime.availableProcessors()
+    private[this] val pool = Executors.newFixedThreadPool(nCPUs)
+
     override def addTask(fun: => String): Unit = pool.execute(() => {
-      val line = fun
+      val line0 = fun
       lock synchronized {
-        pw.println(line)
+        val line = (if (isFirst) prefix else sep) + line0
+        isFirst = false
+        pw.print(line)
         pw.flush()
-        println(line)
+        print(line)
       }
     })
     override def close(): Unit = {
       pool.shutdown()
       pool.awaitTermination(365, TimeUnit.DAYS)
-      pw.println(lastLine)
+      pw.print(suffix)
     }
   }
 
@@ -92,7 +101,7 @@ object Main {
       for ((name, alg) <- algorithms) {
         scheduler addTask {
           val time = alg.optimize(new OneMax(n))
-          s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
@@ -111,7 +120,7 @@ object Main {
       for ((name, alg) <- algorithms) {
         scheduler addTask {
           val time = alg.optimize(new LinearRandomWeights(n, 2))
-          s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
@@ -134,7 +143,7 @@ object Main {
       for ((name, alg) <- algorithms) {
         scheduler addTask {
           val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt))
-          s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
@@ -155,7 +164,7 @@ object Main {
         if (n <= maxN) {
           scheduler.addTask {
             val time = alg.optimize(new OneMaxPerm(n))
-            s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n2":${time.toDouble / n / n}}"""
+            s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n2":${time.toDouble / n / n}}"""
           }
         }
       }
@@ -172,10 +181,10 @@ object Main {
   }
 
   private def parseContext(args: Array[String]): Context = new Context(
-    powers     = args.getOption("--from").toInt to args.getOption("--to").toInt,
-    nRuns      = args.getOption("--runs").toInt,
-    isParallel = args.contains("--par"),
-    outName    = args.getOption("--out")
+    powers   = args.getOption("--from").toInt to args.getOption("--to").toInt,
+    nRuns    = args.getOption("--runs").toInt,
+    nThreads = args.getOption("--threads").toInt,
+    outName  = args.getOption("--out")
   )
 
   def main(args: Array[String]): Unit = {
