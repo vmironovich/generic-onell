@@ -3,7 +3,6 @@ package ru.ifmo.onell
 import java.io.PrintWriter
 import java.util.concurrent.{Executors, TimeUnit}
 
-import scala.collection.parallel.CollectionConverters._
 import scala.util.Using
 
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
@@ -99,24 +98,22 @@ object Main {
     }
   }
 
-  private def bitsLinearSimple(): Unit = {
+  private def bitsLinearSimple(context: Context): Unit = {
     val algorithms = Seq(
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
       "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.fixedLambda(8)),
-      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda)
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.5)),
     )
 
-
-    for ((name, alg) <- algorithms) {
-      print("\\addplot coordinates{")
-      for (n <- (4 to 11).map(i => math.pow(10, i / 2.0).toInt)) {
-        val runs = (0 until 100).par.map(_ => alg.optimize(new LinearRandomWeights(n, 2))).seq
-        val result = runs.sum.toDouble / runs.size / n
-        print(s"($n,$result)")
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val time = alg.optimize(new LinearRandomWeights(n, 2))
+          s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
       }
-      println("};")
-      println(s"\\addlegendentry{$name};")
     }
   }
 
@@ -163,7 +160,7 @@ object Main {
       usage()
     } else args(0) match {
       case "bits:om:simple" => bitsOneMaxSimple(parseContext(args))
-      case "bits:l2:simple" => bitsLinearSimple()
+      case "bits:l2:simple" => bitsLinearSimple(parseContext(args))
       case "perm:om:simple" => permOneMaxSimple(parseContext(args))
       case _ => usage()
     }
