@@ -76,6 +76,7 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int)
   }
 
   override def applyDelta(ind: Array[Boolean], delta: IntSet, currentFitness: Int): Int = {
+    usedClauses.clear()
     val size = delta.size
     var i = 0
     while (i < size) {
