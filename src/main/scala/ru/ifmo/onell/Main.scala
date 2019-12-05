@@ -4,13 +4,12 @@ import java.io.PrintWriter
 import java.util.concurrent.{Executors, TimeUnit}
 
 import scala.util.Using
-
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
-import ru.ifmo.onell.problem.{LinearRandomWeights, OneMax, OneMaxPerm}
+import ru.ifmo.onell.problem.{LinearRandomWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
 
 object Main {
   private def usage(): Nothing = {
-    System.err.println("Usage: Main <bits:om:simple | bits:l2:simple | perm:om:simple>")
+    System.err.println("Usage: Main <bits:om:simple | bits:l2:simple | bits:sat:simple | perm:om:simple>")
     sys.exit()
   }
 
@@ -83,6 +82,7 @@ object Main {
       "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
       "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedAdaptiveLambda),
       "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.1)),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.3)),
       "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.5)),
       "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.7)),
       "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.9)),
@@ -111,6 +111,29 @@ object Main {
       for ((name, alg) <- algorithms) {
         scheduler addTask {
           val time = alg.optimize(new LinearRandomWeights(n, 2))
+          s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsMaxSATSimple(context: Context): Unit = {
+    val algorithms = Seq(
+      "RLS" -> RLS,
+      "(1+1) EA" -> OnePlusOneEA,
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedAdaptiveLambda),
+      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.1)),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.3)),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.5)),
+      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.7)),
+      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.9)),
+    )
+
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt))
           s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
@@ -159,9 +182,10 @@ object Main {
     if (args.length == 0) {
       usage()
     } else args(0) match {
-      case "bits:om:simple" => bitsOneMaxSimple(parseContext(args))
-      case "bits:l2:simple" => bitsLinearSimple(parseContext(args))
-      case "perm:om:simple" => permOneMaxSimple(parseContext(args))
+      case "bits:om:simple"  => bitsOneMaxSimple(parseContext(args))
+      case "bits:l2:simple"  => bitsLinearSimple(parseContext(args))
+      case "bits:sat:simple" => bitsMaxSATSimple(parseContext(args))
+      case "perm:om:simple"  => permOneMaxSimple(parseContext(args))
       case _ => usage()
     }
   }
