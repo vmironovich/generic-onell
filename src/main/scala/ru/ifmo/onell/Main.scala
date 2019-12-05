@@ -15,27 +15,25 @@ object Main {
     sys.exit()
   }
 
-  trait Scheduler {
-    def start(): Unit
+  private trait Scheduler extends AutoCloseable {
     def addTask(fun: => String): Unit
-    def finish(): Unit
   }
 
-  class SingleThreaded(pw: PrintWriter, firstLine: String, lastLine: String) extends Scheduler {
-    override def start(): Unit = pw.println(firstLine)
+  private class SingleThreaded(pw: PrintWriter, firstLine: String, lastLine: String) extends Scheduler {
+    pw.println(firstLine)
     override def addTask(fun: => String): Unit = {
       val line = fun
       pw.println(line)
       pw.flush()
       println(line)
     }
-    override def finish(): Unit = pw.println(lastLine)
+    override def close(): Unit = pw.println(lastLine)
   }
 
-  class MultiThreaded(pw: PrintWriter, firstLine: String, lastLine: String) extends Scheduler {
+  private class MultiThreaded(pw: PrintWriter, firstLine: String, lastLine: String) extends Scheduler {
     private[this] val lock = new AnyRef
     private val pool = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
-    override def start(): Unit = pw.println(firstLine)
+    pw.println(firstLine)
     override def addTask(fun: => String): Unit = pool.execute(() => {
       val line = fun
       lock synchronized {
@@ -44,11 +42,17 @@ object Main {
         println(line)
       }
     })
-    override def finish(): Unit = {
+    override def close(): Unit = {
       pool.shutdown()
       pool.awaitTermination(365, TimeUnit.DAYS)
       pw.println(lastLine)
     }
+  }
+
+  private def makeScheduler(moreOut: PrintWriter, parallel: Boolean): Scheduler = if (parallel) {
+    new MultiThreaded(moreOut, "[{}", "]")
+  } else {
+    new SingleThreaded(moreOut, "[{}", "]")
   }
 
   private def bitsOneMaxSimple(powers: Range, nRuns: Int, parallel: Boolean, outName: String): Unit = {
@@ -64,24 +68,18 @@ object Main {
     )
 
     Using.resource(new PrintWriter(outName)) { moreOut =>
-      val scheduler = if (parallel) {
-        new MultiThreaded(moreOut, "[{}", "]")
-      } else {
-        new SingleThreaded(moreOut, "[{}", "]")
-      }
-      scheduler.start()
-      for (p <- powers; n = 1 << p) {
-        val oneMax = new OneMax(n)
-        for ((name, alg) <- algorithms) {
-          for (_ <- 0 until nRuns) {
-            scheduler addTask {
-              val time = alg.optimize(oneMax)
-              s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+      Using.resource(makeScheduler(moreOut, parallel)) { scheduler =>
+        for (p <- powers; n = 1 << p) {
+          for ((name, alg) <- algorithms) {
+            for (_ <- 0 until nRuns) {
+              scheduler addTask {
+                val time = alg.optimize(new OneMax(n))
+                s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+              }
             }
           }
         }
       }
-      scheduler.finish()
     }
   }
 
@@ -114,32 +112,22 @@ object Main {
       ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedAdaptiveLambda)),
       ("(1+(λ,λ)) GA, λ<=n", 256, new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda)),
     )
-    Using.resource(new PrintWriter(outName)) { moreOut =>
-      println("[")
-      moreOut.println("[")
-      for (p <- powers; n = 1 << p) {
-        val oneMaxPerm = new OneMaxPerm(n)
-        for ((name, maxN, alg) <- algorithms) {
-          if (n <= maxN) {
-            def oneRun(): Unit = {
-              val time = alg.optimize(oneMaxPerm)
-              synchronized {
-                val line = s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n2":${time.toDouble / n / n}},"""
-                println(line)
-                moreOut.println(line)
-              }
-            }
 
-            if (parallel) {
-              for (_ <- (0 until nRuns).par) oneRun()
-            } else {
-              for (_ <- 0 until nRuns) oneRun()
+    Using.resource(new PrintWriter(outName)) { moreOut =>
+      Using.resource(makeScheduler(moreOut, parallel)) { scheduler =>
+        for (p <- powers; n = 1 << p) {
+          for ((name, maxN, alg) <- algorithms) {
+            if (n <= maxN) {
+              for (_ <- 0 until nRuns) {
+                scheduler.addTask {
+                  val time = alg.optimize(new OneMaxPerm(n))
+                  s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n2":${time.toDouble / n / n}}"""
+                }
+              }
             }
           }
         }
       }
-      println("{}]")
-      moreOut.println("{}]")
     }
   }
 
