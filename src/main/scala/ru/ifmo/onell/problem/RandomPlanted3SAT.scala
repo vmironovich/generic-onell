@@ -42,7 +42,7 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int)
     clauseVal(offset) = rng.nextBoolean()
     clauseVal(offset + 1) = rng.nextBoolean()
     clauseVal(offset + 2) = rng.nextBoolean()
-    if (isClauseSatisfied(offset, assignment)) {
+    if (isClauseSatisfied(clauseIdx, assignment)) {
       clausesOfVariableOffset(clauseVar(offset)) += 1
       clausesOfVariableOffset(clauseVar(offset + 1)) += 1
       clausesOfVariableOffset(clauseVar(offset + 2)) += 1
