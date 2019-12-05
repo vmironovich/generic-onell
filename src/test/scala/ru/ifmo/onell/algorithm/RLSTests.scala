@@ -1,11 +1,9 @@
 package ru.ifmo.onell.algorithm
 
 import scala.Ordering.Double.IeeeOrdering
-
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import ru.ifmo.onell.problem.{OneMax, OneMaxPerm}
+import ru.ifmo.onell.problem.{LinearRandomWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
 
 class RLSTests extends AnyFlatSpec with Matchers {
   "RLS" should "perform as expected on OneMax" in {
@@ -24,5 +22,23 @@ class RLSTests extends AnyFlatSpec with Matchers {
     val expected = size / 2.0 * size * (1 to size / 2).map(1.0 / _).sum
     val found = runs.sum.toDouble / runs.size
     found should (be <= expected * 1.2)
+  }
+
+  it should "perform as expected on LinearRandomWeights" in {
+    val size = 200
+    val w = new LinearRandomWeights(size, 5.0)
+    val runs = IndexedSeq.fill(100)(RLS.optimize(w))
+    val expected = size * (1 to size / 2).map(1.0 / _).sum
+    val found = runs.sum.toDouble / runs.size
+    found should (be <= expected * 1.1)
+  }
+
+  it should "perform as expected on RandomPlanted3SAT" in {
+    val size = 200
+    val sat = new RandomPlanted3SAT(size, size * 20)
+    val runs = IndexedSeq.fill(10)(RLS.optimize(sat))
+    val expected = size * (1 to size / 2).map(1.0 / _).sum
+    val found = runs.sum.toDouble / runs.size
+    found should (be <= expected * 1.4)
   }
 }
