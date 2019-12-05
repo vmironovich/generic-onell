@@ -1,7 +1,7 @@
 lazy val commonSettings = Seq(
   organization := "ru.ifmo",
   libraryDependencies += scalaTest,
-  scalaVersion := "2.13.0",
+  scalaVersion := "2.13.1",
   scalacOptions ++= Seq("-deprecation"),
   fork := true
 )
