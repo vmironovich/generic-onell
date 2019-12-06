@@ -51,7 +51,9 @@ class HierarchicIntSet(maxElement: Long) extends IntSet {
           new Array[Boolean](1 + lowerHalfMask)
         } else {
           arrayPoolSize -= 1
-          arrayPool(arrayPoolSize)
+          val res = arrayPool(arrayPoolSize)
+          arrayPool(arrayPoolSize) = null
+          res
         }
         containment(hi) = attempt1
         attempt1
