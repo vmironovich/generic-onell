@@ -22,51 +22,58 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
     val rng = Random.current()
     val individual = indOps.createStorage(problemSize)
     val mutation, mutationBest, crossover, crossoverBest = deltaOps.createStorage(nChanges)
+    val aux = new Aux[F]
 
     @tailrec
-    def runMutationsEtc(remaining: Int, baseFitness: F, bestFitness: F, change: Int): (F, Int) = {
-      if (remaining == 0) (bestFitness, change) else {
+    def runMutationsEtc(remaining: Int, baseFitness: F, bestFitness: F, change: Int, aux: Aux[F]): Unit = {
+      if (remaining == 0) {
+        aux.fitness = bestFitness
+        aux.distance = change
+      } else {
         deltaOps.initializeDeltaWithGivenSize(mutation, nChanges, change, rng)
         val currFitness = fitness.evaluateAssumingDelta(individual, mutation, baseFitness)
         if (fitness.compare(bestFitness, currFitness) < 0) {
           deltaOps.copyDelta(mutation, mutationBest)
-          runMutationsEtc(remaining - 1, baseFitness, currFitness, change)
+          runMutationsEtc(remaining - 1, baseFitness, currFitness, change, aux)
         } else {
-          runMutationsEtc(remaining - 1, baseFitness, bestFitness, change)
+          runMutationsEtc(remaining - 1, baseFitness, bestFitness, change, aux)
         }
       }
     }
 
     @tailrec
-    def runMutations(remaining: Int, baseFitness: F, expectedChange: Double): (F, Int) = {
+    def runMutations(remaining: Int, baseFitness: F, expectedChange: Double, aux: Aux[F]): Unit = {
       val change = deltaOps.initializeDeltaWithDefaultSize(mutation, nChanges, expectedChange, rng)
       if (change == 0) {
-        runMutations(remaining, baseFitness, expectedChange)
+        runMutations(remaining, baseFitness, expectedChange, aux)
       } else {
         deltaOps.copyDelta(mutation, mutationBest)
         val firstFitness = fitness.evaluateAssumingDelta(individual, mutation, baseFitness)
-        runMutationsEtc(remaining - 1, baseFitness, firstFitness, change)
+        runMutationsEtc(remaining - 1, baseFitness, firstFitness, change, aux)
       }
     }
 
     @tailrec
     def runCrossover(remaining: Int, soFar: Int, baseFitness: F, bestFitness: F,
-                     expectedChange: Double, mutantDistance: Int): (F, Int) = {
-      if (remaining == 0) (bestFitness, soFar) else {
+                     expectedChange: Double, mutantDistance: Int, result: Aux[F]): Unit = {
+      if (remaining == 0) {
+        result.fitness = bestFitness
+        result.calls = soFar
+      } else {
         val size = deltaOps.initializeDeltaFromExisting(crossover, mutationBest, expectedChange, rng)
         if (size == 0) {
           // no bits from the child, skipping entirely
-          runCrossover(remaining, soFar, baseFitness, bestFitness, expectedChange, mutantDistance)
+          runCrossover(remaining, soFar, baseFitness, bestFitness, expectedChange, mutantDistance, result)
         } else if (size == mutantDistance) {
           // all bits from the child, skipping evaluations but reducing budget
-          runCrossover(remaining - 1, soFar, baseFitness, bestFitness, expectedChange, mutantDistance)
+          runCrossover(remaining - 1, soFar, baseFitness, bestFitness, expectedChange, mutantDistance, result)
         } else {
           val currFitness = fitness.evaluateAssumingDelta(individual, crossover, baseFitness)
           if (fitness.compare(bestFitness, currFitness) <= 0) { // <= since we want to be able to overwrite parent
             deltaOps.copyDelta(crossover, crossoverBest)
-            runCrossover(remaining - 1, soFar + 1, baseFitness, currFitness, expectedChange, mutantDistance)
+            runCrossover(remaining - 1, soFar + 1, baseFitness, currFitness, expectedChange, mutantDistance, result)
           } else {
-            runCrossover(remaining - 1, soFar + 1, baseFitness, bestFitness, expectedChange, mutantDistance)
+            runCrossover(remaining - 1, soFar + 1, baseFitness, bestFitness, expectedChange, mutantDistance, result)
           }
         }
       }
@@ -82,11 +89,17 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
       val mutationPopSize = math.max(1, (lambda * constantTuning.firstPopulationSizeQuotient).toInt)
       val crossoverPopSize = math.max(1, (lambda * constantTuning.secondPopulationSizeQuotient).toInt)
 
-      val (bestMutantFitness, mutantDistance) = runMutations(mutationPopSize, f, mutationExpectedChanges)
+      runMutations(mutationPopSize, f, mutationExpectedChanges, aux)
+      val bestMutantFitness = aux.fitness
+      val mutantDistance = aux.distance
+
       deltaOps.copyDelta(mutationBest, crossoverBest)
 
-      val (bestCrossFitness, crossEvs) = runCrossover(crossoverPopSize, 0, f, bestMutantFitness,
-                                                      crossoverProbability * mutantDistance, mutantDistance)
+      runCrossover(crossoverPopSize, 0, f, bestMutantFitness, crossoverProbability * mutantDistance,
+        mutantDistance, aux)
+      val bestCrossFitness = aux.fitness
+      val crossEvs = aux.calls
+
       val fitnessComparison = fitness.compare(f, bestCrossFitness)
       if (fitnessComparison < 0) {
         lambdaP.notifyChildIsBetter()
@@ -174,5 +187,11 @@ object OnePlusLambdaLambdaGA {
       weights += addend
       collectWeightsUntilThreshold(beta, index + 1, size, addend, weights)
     }
+  }
+
+  private final class Aux[@sp(fsp) F] {
+    var fitness: F = _
+    var distance: Int = _
+    var calls: Int = _
   }
 }
