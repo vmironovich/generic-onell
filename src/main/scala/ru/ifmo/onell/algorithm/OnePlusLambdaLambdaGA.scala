@@ -25,18 +25,16 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
     val aux = new Aux[F]
 
     @tailrec
-    def runMutationsEtc(remaining: Int, baseFitness: F, bestFitness: F, change: Int, aux: Aux[F]): Unit = {
-      if (remaining == 0) {
-        aux.fitness = bestFitness
-        aux.distance = change
-      } else {
-        deltaOps.initializeDeltaWithGivenSize(mutation, nChanges, change, rng)
+    def runMutationsEtc(remaining: Int, baseFitness: F, aux: Aux[F]): Unit = {
+      if (remaining > 0) {
+        deltaOps.initializeDeltaWithGivenSize(mutation, nChanges, aux.distance, rng)
         val currFitness = fitness.evaluateAssumingDelta(individual, mutation, baseFitness)
-        if (fitness.compare(bestFitness, currFitness) < 0) {
+        if (fitness.compare(aux.fitness, currFitness) < 0) {
           deltaOps.copyDelta(mutation, mutationBest)
-          runMutationsEtc(remaining - 1, baseFitness, currFitness, change, aux)
+          aux.fitness = currFitness
+          runMutationsEtc(remaining - 1, baseFitness, aux)
         } else {
-          runMutationsEtc(remaining - 1, baseFitness, bestFitness, change, aux)
+          runMutationsEtc(remaining - 1, baseFitness, aux)
         }
       }
     }
@@ -48,8 +46,9 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
         runMutations(remaining, baseFitness, expectedChange, aux)
       } else {
         deltaOps.copyDelta(mutation, mutationBest)
-        val firstFitness = fitness.evaluateAssumingDelta(individual, mutation, baseFitness)
-        runMutationsEtc(remaining - 1, baseFitness, firstFitness, change, aux)
+        aux.fitness = fitness.evaluateAssumingDelta(individual, mutation, baseFitness)
+        aux.distance = change
+        runMutationsEtc(remaining - 1, baseFitness, aux)
       }
     }
 
