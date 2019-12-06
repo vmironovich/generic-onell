@@ -65,7 +65,7 @@ object Main {
     private[this] val lock = new AnyRef
     private[this] var isFirst = true
     private[this] val nCPUs = if (nThreads >= 1) nThreads else Runtime.getRuntime.availableProcessors()
-    private[this] val pool = Executors.newFixedThreadPool(nCPUs)
+    private[this] val pool = Executors.newWorkStealingPool(nCPUs)
 
     override def addTask(fun: => String): Unit = pool.execute(() => {
       val line0 = fun
