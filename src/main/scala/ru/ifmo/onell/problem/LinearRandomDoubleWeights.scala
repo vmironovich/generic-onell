@@ -5,11 +5,11 @@ import java.util.Random
 import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 import ru.ifmo.onell.util.IntSet
 
-class LinearRandomDoubleWeights(val problemSize: Int, val maxWeight: Double)
+class LinearRandomDoubleWeights(val problemSize: Int, val maxWeight: Double, randomSeed: Long)
   extends HasEvaluation[Array[Boolean], Double]
     with HasIncrementalEvaluation[Array[Boolean], IntSet, Double]
 {
-  private[this] val rng = new Random(123456789)
+  private[this] val rng = new Random(randomSeed)
   private[this] val weights = Array.fill(problemSize)(rng.nextDouble() * (maxWeight - 1) + 1)
   private[this] val weightSum = weights.sum
 

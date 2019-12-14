@@ -28,7 +28,7 @@ class RLSTests extends AnyFlatSpec with Matchers {
 
   it should "perform as expected on LinearRandomDoubleWeights" in {
     val size = 200
-    val w = new LinearRandomDoubleWeights(size, 5.0)
+    val w = new LinearRandomDoubleWeights(size, 5.0, 127324)
     val runs = IndexedSeq.fill(100)(RLS.optimize(w))
     val expected = size * (1 to size / 2).map(1.0 / _).sum
     val found = runs.sum.toDouble / runs.size
@@ -37,7 +37,7 @@ class RLSTests extends AnyFlatSpec with Matchers {
 
   it should "perform as expected on LinearRandomIntegerWeights" in {
     val size = 200
-    val w = new LinearRandomIntegerWeights(size, 5)
+    val w = new LinearRandomIntegerWeights(size, 5, 824354325)
     val runs = IndexedSeq.fill(100)(RLS.optimize(w))
     val expected = size * (1 to size / 2).map(1.0 / _).sum
     val found = runs.sum.toDouble / runs.size
@@ -46,7 +46,7 @@ class RLSTests extends AnyFlatSpec with Matchers {
 
   it should "perform as expected on RandomPlanted3SAT" in {
     val size = 200
-    val sat = new RandomPlanted3SAT(size, size * 20)
+    val sat = new RandomPlanted3SAT(size, size * 20, 82365436465L)
     val runs = IndexedSeq.fill(10)(RLS.optimize(sat))
     val expected = size * (1 to size / 2).map(1.0 / _).sum
     val found = runs.sum.toDouble / runs.size

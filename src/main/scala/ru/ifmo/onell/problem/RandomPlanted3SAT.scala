@@ -1,16 +1,17 @@
 package ru.ifmo.onell.problem
 
+import java.util.Random
 import java.util.concurrent.ThreadLocalRandom
 
 import ru.ifmo.onell.util.{DenseIntSet, Helpers, IntSet}
 import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
-
 import scala.annotation.tailrec
 
-class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int)
+class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: Long)
   extends HasEvaluation[Array[Boolean], Int] with HasIncrementalEvaluation[Array[Boolean], IntSet, Int]
 {
-  private[this] val assignment = Array.fill(problemSize)(ThreadLocalRandom.current().nextBoolean())
+  private[this] val assignmentRNG = new Random(randomSeed)
+  private[this] val assignment = Array.fill(problemSize)(assignmentRNG.nextBoolean())
   private[this] val clauseVar = new Array[Int](clauseCount * 3)
   private[this] val clauseVal = new Array[Boolean](clauseCount * 3)
   private[this] val clausesOfVariableOffset = new Array[Int](problemSize + 1)

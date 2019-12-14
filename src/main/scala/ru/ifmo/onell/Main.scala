@@ -1,6 +1,7 @@
 package ru.ifmo.onell
 
 import java.io.PrintWriter
+import java.util.Random
 
 import scala.util.Using
 
@@ -69,10 +70,11 @@ object Main {
       "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.5)),
     )
 
+    val seeder = new Random(314252354)
     context.run { (scheduler, n) =>
       for ((name, alg) <- algorithms) {
         scheduler addTask {
-          val time = alg.optimize(new LinearRandomDoubleWeights(n, 2.0))
+          val time = alg.optimize(new LinearRandomDoubleWeights(n, 2.0, seeder.nextLong()))
           s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
@@ -92,10 +94,11 @@ object Main {
       "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.9)),
     )
 
+    val seeder = new Random(314252354)
     context.run { (scheduler, n) =>
       for ((name, alg) <- algorithms) {
         scheduler addTask {
-          val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt))
+          val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt, seeder.nextLong()))
           s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
