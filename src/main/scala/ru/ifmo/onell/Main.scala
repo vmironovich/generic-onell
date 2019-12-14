@@ -5,12 +5,12 @@ import java.io.PrintWriter
 import scala.util.Using
 
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
-import ru.ifmo.onell.problem.{LinearRandomWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
+import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
 import ru.ifmo.onell.util.par._
 
 object Main {
   private def usage(): Nothing = {
-    System.err.println("Usage: Main <bits:om:simple | bits:l2:simple | bits:sat:simple | perm:om:simple>")
+    System.err.println("Usage: Main <bits:om:simple | bits:l2d:simple | bits:sat:simple | perm:om:simple>")
     sys.exit()
   }
 
@@ -60,7 +60,7 @@ object Main {
     }
   }
 
-  private def bitsLinearSimple(context: Context): Unit = {
+  private def bitsLinearDoubleSimple(context: Context): Unit = {
     val algorithms = Seq(
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
@@ -72,7 +72,7 @@ object Main {
     context.run { (scheduler, n) =>
       for ((name, alg) <- algorithms) {
         scheduler addTask {
-          val time = alg.optimize(new LinearRandomWeights(n, 2))
+          val time = alg.optimize(new LinearRandomDoubleWeights(n, 2.0))
           s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
@@ -145,7 +145,7 @@ object Main {
       usage()
     } else args(0) match {
       case "bits:om:simple"  => bitsOneMaxSimple(parseContext(args))
-      case "bits:l2:simple"  => bitsLinearSimple(parseContext(args))
+      case "bits:l2d:simple"  => bitsLinearDoubleSimple(parseContext(args))
       case "bits:sat:simple" => bitsMaxSATSimple(parseContext(args))
       case "perm:om:simple"  => permOneMaxSimple(parseContext(args))
       case _ => usage()
