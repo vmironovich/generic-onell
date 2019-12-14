@@ -19,6 +19,7 @@ class ParallelExecutor(pw: PrintWriter, prefix: String, sep: String, suffix: Str
       print(line)
     }
   })
+
   override def close(): Unit = {
     pool.shutdown()
     pool.awaitTermination(365, TimeUnit.DAYS)
