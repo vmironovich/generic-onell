@@ -5,4 +5,5 @@ package ru.ifmo.onell.util
   */
 object Specialization {
   final val fitnessSpecialization = Specializable.Bits32AndUp
+  final val changeSpecialization = Specializable.Integral
 }
