@@ -1,11 +1,12 @@
 package ru.ifmo.onell
 
 import java.io.PrintWriter
-import java.util.concurrent.{Executors, TimeUnit}
 
 import scala.util.Using
+
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
 import ru.ifmo.onell.problem.{LinearRandomWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
+import ru.ifmo.onell.util.par._
 
 object Main {
   private def usage(): Nothing = {
@@ -18,7 +19,7 @@ object Main {
     private[this] val jsonSeparator = "\n,"
     private[this] val jsonSuffix = "\n]\n"
 
-    def run(fun: (Scheduler, Int) => Any): Unit = {
+    def run(fun: (Executor, Int) => Any): Unit = {
       Using.resource(new PrintWriter(outName)) { moreOut =>
         Using.resource(makeScheduler(moreOut)) { scheduler =>
           val multiplexer = new Multiplexer(scheduler, nRuns)
@@ -29,58 +30,10 @@ object Main {
       }
     }
 
-    private def makeScheduler(moreOut: PrintWriter): Scheduler = if (nThreads == 1) {
-      new SingleThreaded(moreOut, jsonPrefix, jsonSeparator, jsonSuffix)
+    private def makeScheduler(moreOut: PrintWriter): Executor = if (nThreads == 1) {
+      new SequentialExecutor(moreOut, jsonPrefix, jsonSeparator, jsonSuffix)
     } else {
-      new MultiThreaded(moreOut, jsonPrefix, jsonSeparator, jsonSuffix, nThreads)
-    }
-  }
-
-  private trait Scheduler extends AutoCloseable {
-    def addTask(fun: => String): Unit
-  }
-
-  private class Multiplexer(base: Scheduler, times: Int) extends Scheduler {
-    override def close(): Unit = {}
-    override def addTask(fun: => String): Unit = {
-      for (_ <- 0 until times) {
-        base.addTask(fun)
-      }
-    }
-  }
-
-  private class SingleThreaded(pw: PrintWriter, prefix: String, sep: String, suffix: String) extends Scheduler {
-    private[this] var isFirst = true
-    override def addTask(fun: => String): Unit = {
-      val line = (if (isFirst) prefix else sep) + fun
-      isFirst = false
-      pw.print(line)
-      pw.flush()
-      print(line)
-    }
-    override def close(): Unit = pw.print(suffix)
-  }
-
-  private class MultiThreaded(pw: PrintWriter, prefix: String, sep: String, suffix: String, nThreads: Int) extends Scheduler {
-    private[this] val lock = new AnyRef
-    private[this] var isFirst = true
-    private[this] val nCPUs = if (nThreads >= 1) nThreads else Runtime.getRuntime.availableProcessors()
-    private[this] val pool = Executors.newWorkStealingPool(nCPUs)
-
-    override def addTask(fun: => String): Unit = pool.execute(() => {
-      val line0 = fun
-      lock synchronized {
-        val line = (if (isFirst) prefix else sep) + line0
-        isFirst = false
-        pw.print(line)
-        pw.flush()
-        print(line)
-      }
-    })
-    override def close(): Unit = {
-      pool.shutdown()
-      pool.awaitTermination(365, TimeUnit.DAYS)
-      pw.print(suffix)
+      new ParallelExecutor(moreOut, jsonPrefix, jsonSeparator, jsonSuffix, nThreads)
     }
   }
 
