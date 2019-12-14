@@ -59,19 +59,17 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
         if (size == 0) {
           // no bits from the child, skipping entirely
           runCrossover(remaining, baseFitness, expectedChange, mutantDistance, result)
-        } else if (size == mutantDistance) {
-          // all bits from the child, skipping evaluations but reducing budget
-          runCrossover(remaining - 1, baseFitness, expectedChange, mutantDistance, result)
         } else {
-          val currFitness = fitness.evaluateAssumingDelta(individual, crossover, baseFitness)
-          aux.incrementCalls()
-          if (fitness.compare(aux.fitness, currFitness) <= 0) { // <= since we want to be able to overwrite parent
-            deltaOps.copyDelta(crossover, crossoverBest)
-            aux.fitness = currFitness
-            runCrossover(remaining - 1, baseFitness, expectedChange, mutantDistance, result)
-          } else {
-            runCrossover(remaining - 1, baseFitness, expectedChange, mutantDistance, result)
+          if (size != mutantDistance) {
+            // if not all bits from the child, we shall evaluate the offspring, and if it is better, update the best
+            val currFitness = fitness.evaluateAssumingDelta(individual, crossover, baseFitness)
+            aux.incrementCalls()
+            if (fitness.compare(aux.fitness, currFitness) <= 0) { // <= since we want to be able to overwrite parent
+              deltaOps.copyDelta(crossover, crossoverBest)
+              aux.fitness = currFitness
+            }
           }
+          runCrossover(remaining - 1, baseFitness, expectedChange, mutantDistance, result)
         }
       }
     }
