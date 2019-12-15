@@ -2,21 +2,23 @@ package ru.ifmo.onell
 
 import java.util.concurrent.{ThreadLocalRandom => Random}
 
-import ru.ifmo.onell.delta.IntSetOps
-import ru.ifmo.onell.util.IntSet
+import ru.ifmo.onell.delta.{IntSetOps, LongSetOps}
+import ru.ifmo.onell.util.OrderedSet
+import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp}
 
 /**
   * This trait encapsulates the knowledge about manipulations with delta representations.
   *
-  * @tparam DeltaRepresentation the type of the delta representation.
+  * @tparam ChangeType the type of a single element of the delta.
+  * @tparam ChangeSizeType the integer type of the integer
   */
-trait HasDeltaOperations[DeltaRepresentation] {
+trait HasDeltaOperations[@specialized(csp) ChangeType, @specialized(csp) ChangeSizeType] {
   /**
     * Creates a new delta representation, given the number of possible changes.
     * @param nChanges the number of possible changes.
     * @return the newly created delta representation.
     */
-  def createStorage(nChanges: Long): DeltaRepresentation
+  def createStorage(nChanges: ChangeSizeType): OrderedSet[ChangeType]
 
   /**
     * Initializes the given delta using some default size distribution law.
@@ -26,7 +28,7 @@ trait HasDeltaOperations[DeltaRepresentation] {
     * @param rng the random number generator.
     * @return the size of the just-initialized delta.
     */
-  def initializeDeltaWithDefaultSize(delta: DeltaRepresentation, nChanges: Long, expectedSize: Double, rng: Random): Int
+  def initializeDeltaWithDefaultSize(delta: OrderedSet[ChangeType], nChanges: ChangeSizeType, expectedSize: Double, rng: Random): Int
 
   /**
     * Initializes the given delta using the specified delta size.
@@ -35,7 +37,7 @@ trait HasDeltaOperations[DeltaRepresentation] {
     * @param size the size which the delta must have.
     * @param rng the random number generator.
     */
-  def initializeDeltaWithGivenSize(delta: DeltaRepresentation, nChanges: Long, size: Int, rng: Random): Unit
+  def initializeDeltaWithGivenSize(delta: OrderedSet[ChangeType], nChanges: ChangeSizeType, size: Int, rng: Random): Unit
 
   /**
     * Initializes the given delta using some default distribution law, but taking
@@ -45,20 +47,14 @@ trait HasDeltaOperations[DeltaRepresentation] {
     * @param rng the random number generator.
     * @return the size of the just-initialized delta.
     */
-  def initializeDeltaFromExisting(delta: DeltaRepresentation, source: DeltaRepresentation,
+  def initializeDeltaFromExisting(delta: OrderedSet[ChangeType], source: OrderedSet[ChangeType],
                                   expectedSize: Double, rng: Random): Int
-
-  /**
-    * Copies the deltas from source to target.
-    * @param source the source delta.
-    * @param target the target delta.
-    */
-  def copyDelta(source: DeltaRepresentation, target: DeltaRepresentation): Unit
 }
 
 /**
   * This companion object contains several known implementations of the `HasDeltaOperations` trait.
   */
 object HasDeltaOperations {
-  implicit def forIntArraySet: HasDeltaOperations[IntSet] = IntSetOps
+  implicit def forInt:  HasDeltaOperations[Int, Int]   = IntSetOps
+  implicit def forLong: HasDeltaOperations[Long, Long] = LongSetOps
 }

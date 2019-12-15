@@ -4,7 +4,7 @@ import java.util.Random
 
 import scala.collection.mutable
 
-class SparseIntSet extends IntSet {
+class SparseIntSet extends OrderedSet[Long] {
   private[this] var elements: Array[Long] = new Array[Long](10)
   private[this] var nElements = 0
   private[this] val elementSet = new mutable.HashSet[Long]()

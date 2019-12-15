@@ -6,14 +6,16 @@ import scala.annotation.tailrec
 import scala.{specialized => sp}
 
 import ru.ifmo.onell.{HasDeltaOperations, HasEvaluation, HasIncrementalEvaluation, HasIndividualOperations, Optimizer}
-import ru.ifmo.onell.util.Specialization.{fitnessSpecialization => fsp}
+import ru.ifmo.onell.util.Specialization.{fitnessSpecialization => fsp, changeSpecialization => csp}
 
 /**
   * This is an implementation of randomized local search.
   */
 object RLS extends Optimizer {
-  final def optimize[I, @sp(fsp) F, D](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, D, F])
-                                      (implicit deltaOps: HasDeltaOperations[D], indOps: HasIndividualOperations[I]): Long = {
+  final def optimize[I, @sp(fsp) F, @sp(csp) C, @sp(csp) Cs]
+    (fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, C, Cs, F])
+    (implicit deltaOps: HasDeltaOperations[C, Cs], indOps: HasIndividualOperations[I]): Long =
+  {
     val problemSize = fitness.problemSize
     val nChanges = fitness.numberOfChangesForProblemSize(problemSize)
     val individual = indOps.createStorage(problemSize)

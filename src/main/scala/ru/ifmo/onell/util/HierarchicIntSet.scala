@@ -3,7 +3,7 @@ package ru.ifmo.onell.util
 import java.lang.{Long => JLong}
 import java.util.{Arrays => JArrays, Random}
 
-class HierarchicIntSet(maxElement: Long) extends IntSet {
+class HierarchicIntSet(maxElement: Long) extends OrderedSet[Long] {
   private[this] val nonZeroBits = 64 - JLong.numberOfLeadingZeros(maxElement - 1)
   private[this] val lowerHalfBits = nonZeroBits / 2
   private[this] val lowerHalfMask = (1 << lowerHalfBits) - 1

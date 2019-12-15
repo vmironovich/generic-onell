@@ -3,12 +3,13 @@ package ru.ifmo.onell.problem
 import java.util.Random
 import java.util.concurrent.ThreadLocalRandom
 
-import ru.ifmo.onell.util.{DenseIntSet, Helpers, IntSet}
-import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 import scala.annotation.tailrec
 
+import ru.ifmo.onell.util.{DenseIntSet, Helpers, OrderedSet}
+import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
+
 class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: Long)
-  extends HasEvaluation[Array[Boolean], Int] with HasIncrementalEvaluation[Array[Boolean], IntSet, Int]
+  extends HasEvaluation[Array[Boolean], Int] with HasIncrementalEvaluation[Array[Boolean], Int, Int, Int]
 {
   private[this] val assignmentRNG = new Random(randomSeed)
   private[this] val assignment = Array.fill(problemSize)(assignmentRNG.nextBoolean())
@@ -70,18 +71,19 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: 
 
   override def compare(lhs: Int, rhs: Int): Int = Integer.compare(lhs, rhs)
   override def isOptimalFitness(fitness: Int): Boolean = fitness == clauseCount
-  override def numberOfChangesForProblemSize(problemSize: Int): Long = problemSize
+  override def numberOfChangesForProblemSize(problemSize: Int): Int = problemSize
+  override def sizeTypeToLong(st: Int): Long = st
 
   override def evaluate(individual: Array[Boolean]): Int = {
     (0 until clauseCount).count(i => isClauseSatisfied(i, individual))
   }
 
-  override def applyDelta(ind: Array[Boolean], delta: IntSet, currentFitness: Int): Int = {
+  override def applyDelta(ind: Array[Boolean], delta: OrderedSet[Int], currentFitness: Int): Int = {
     usedClauses.clear()
     val size = delta.size
     var i = 0
     while (i < size) {
-      val d = delta(i).toInt
+      val d = delta(i)
       var j = clausesOfVariableOffset(d)
       val jMax = clausesOfVariableOffset(d + 1)
       while (j < jMax) {
@@ -95,13 +97,13 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: 
     currentFitness - satBefore + countSatisfiedClauses(usedClauses, ind)
   }
 
-  override def unapplyDelta(ind: Array[Boolean], delta: IntSet): Unit = Helpers.flipEachBit(ind, delta)
+  override def unapplyDelta(ind: Array[Boolean], delta: OrderedSet[Int]): Unit = Helpers.flipEachBit(ind, delta)
 
-  private def countSatisfiedClauses(clauseIndices: IntSet, individual: Array[Boolean]): Int = {
+  private def countSatisfiedClauses(clauseIndices: OrderedSet[Int], individual: Array[Boolean]): Int = {
     var f = 0
     var i = clauseIndices.size - 1
     while (i >= 0) {
-      f += (if (isClauseSatisfied(usedClauses.applyAsInt(i), individual)) 1 else 0)
+      f += (if (isClauseSatisfied(usedClauses(i), individual)) 1 else 0)
       i -= 1
     }
     f
