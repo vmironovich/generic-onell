@@ -8,4 +8,14 @@ trait OrderedSet[@specialized(Specialization.changeSpecialization) T] {
   def clear(): Unit
   def add(element: T): Unit
   def shuffleOrder(rng: Random): Unit
+
+  def copyFrom(that: OrderedSet[T]): Unit = {
+    clear()
+    val thatSize = that.size
+    var i = 0
+    while (i < thatSize) {
+      add(that(i))
+      i += 1
+    }
+  }
 }

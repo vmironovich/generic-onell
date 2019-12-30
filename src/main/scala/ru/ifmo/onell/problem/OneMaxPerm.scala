@@ -1,11 +1,11 @@
 package ru.ifmo.onell.problem
 
+import ru.ifmo.onell.util.{OrderedSet, Permutation}
 import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
-import ru.ifmo.onell.util.{IntSet, Permutation}
 
 class OneMaxPerm(val problemSize: Int)
   extends HasEvaluation[Permutation, Int]
-    with HasIncrementalEvaluation[Permutation, IntSet, Int]
+    with HasIncrementalEvaluation[Permutation, Long, Int]
 {
   override def evaluate(individual: Permutation): Int = {
     var i, rv = 0
@@ -21,8 +21,9 @@ class OneMaxPerm(val problemSize: Int)
   override def compare(lhs: Int, rhs: Int): Int = lhs - rhs
   override def isOptimalFitness(fitness: Int): Boolean = fitness == problemSize
   override def numberOfChangesForProblemSize(problemSize: Int): Long = problemSize * (problemSize - 1L) / 2
+  override def sizeTypeToLong(st: Long): Long = st
 
-  override def applyDelta(ind: Permutation, delta: IntSet, currentFitness: Int): Int = {
+  override def applyDelta(ind: Permutation, delta: OrderedSet[Long], currentFitness: Int): Int = {
     var i = 0
     var newFitness = currentFitness
     while (i < delta.size) {
@@ -37,7 +38,7 @@ class OneMaxPerm(val problemSize: Int)
     newFitness
   }
 
-  override def unapplyDelta(ind: Permutation, delta: IntSet): Unit = {
+  override def unapplyDelta(ind: Permutation, delta: OrderedSet[Long]): Unit = {
     var i = delta.size - 1
     while (i >= 0) {
       val (j0, j1) = OneMaxPerm.unpack(delta(i))
