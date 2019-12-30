@@ -7,7 +7,7 @@ import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 
 class LinearRandomIntegerWeights(val problemSize: Int, val maxWeight: Int, randomSeed: Long)
   extends HasEvaluation[Array[Boolean], Long]
-    with HasIncrementalEvaluation[Array[Boolean], Int, Int, Long]
+    with HasIncrementalEvaluation[Array[Boolean], Int, Long]
 {
   private[this] val rng = new Random(randomSeed)
   private[this] val weights = Array.fill(problemSize)(rng.nextInt(maxWeight - 1) + 1)

@@ -5,7 +5,7 @@ import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 
 class OneMax(val problemSize: Int)
   extends HasEvaluation[Array[Boolean], Int]
-  with HasIncrementalEvaluation[Array[Boolean], Int, Int, Int]
+  with HasIncrementalEvaluation[Array[Boolean], Int, Int]
 {
   override def evaluate(individual: Array[Boolean]): Int = {
     var i, rv = 0

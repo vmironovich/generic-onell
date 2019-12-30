@@ -12,9 +12,9 @@ import ru.ifmo.onell.util.Specialization.{fitnessSpecialization => fsp, changeSp
   * This is an implementation of randomized local search.
   */
 object RLS extends Optimizer {
-  final def optimize[I, @sp(fsp) F, @sp(csp) C, @sp(csp) Cs]
-    (fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, C, Cs, F])
-    (implicit deltaOps: HasDeltaOperations[C, Cs], indOps: HasIndividualOperations[I]): Long =
+  final def optimize[I, @sp(fsp) F, @sp(csp) C]
+    (fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, C, F])
+    (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I]): Long =
   {
     val problemSize = fitness.problemSize
     val nChanges = fitness.numberOfChangesForProblemSize(problemSize)

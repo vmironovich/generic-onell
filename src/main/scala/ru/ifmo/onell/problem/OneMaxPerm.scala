@@ -5,7 +5,7 @@ import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 
 class OneMaxPerm(val problemSize: Int)
   extends HasEvaluation[Permutation, Int]
-    with HasIncrementalEvaluation[Permutation, Long, Long, Int]
+    with HasIncrementalEvaluation[Permutation, Long, Int]
 {
   override def evaluate(individual: Permutation): Int = {
     var i, rv = 0

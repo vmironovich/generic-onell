@@ -15,10 +15,9 @@ trait Optimizer {
     * @param indOps the implicit that explains how to manage representations of individuals.
     * @tparam I the type of an individual.
     * @tparam F the type of a fitness value.
-    * @tparam С the type of a single change of an individual.
-    * @tparam Cs the type that can represent the number of changes.
+    * @tparam С the type of change index of an individual.
     * @return the number of evaluations until an optimum is found.
     */
-  def optimize[I, @sp(fsp) F, @sp(csp) С, @sp(csp) Cs](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, С, Cs, F])
-                                (implicit deltaOps: HasDeltaOperations[С, Cs], indOps: HasIndividualOperations[I]): Long
+  def optimize[I, @sp(fsp) F, @sp(csp) С](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, С, F])
+                                         (implicit deltaOps: HasDeltaOperations[С], indOps: HasIndividualOperations[I]): Long
 }

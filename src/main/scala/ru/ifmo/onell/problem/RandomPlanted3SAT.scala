@@ -9,7 +9,7 @@ import ru.ifmo.onell.util.{DenseIntSet, Helpers, OrderedSet}
 import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 
 class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: Long)
-  extends HasEvaluation[Array[Boolean], Int] with HasIncrementalEvaluation[Array[Boolean], Int, Int, Int]
+  extends HasEvaluation[Array[Boolean], Int] with HasIncrementalEvaluation[Array[Boolean], Int, Int]
 {
   private[this] val assignmentRNG = new Random(randomSeed)
   private[this] val assignment = Array.fill(problemSize)(assignmentRNG.nextBoolean())

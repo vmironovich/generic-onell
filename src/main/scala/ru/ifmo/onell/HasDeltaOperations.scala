@@ -9,16 +9,15 @@ import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp}
 /**
   * This trait encapsulates the knowledge about manipulations with delta representations.
   *
-  * @tparam ChangeType the type of a single element of the delta.
-  * @tparam ChangeSizeType the integer type of the integer
+  * @tparam ChangeIndexType the type of a single element of the delta.
   */
-trait HasDeltaOperations[@specialized(csp) ChangeType, @specialized(csp) ChangeSizeType] {
+trait HasDeltaOperations[@specialized(csp) ChangeIndexType] {
   /**
     * Creates a new delta representation, given the number of possible changes.
     * @param nChanges the number of possible changes.
     * @return the newly created delta representation.
     */
-  def createStorage(nChanges: ChangeSizeType): OrderedSet[ChangeType]
+  def createStorage(nChanges: ChangeIndexType): OrderedSet[ChangeIndexType]
 
   /**
     * Initializes the given delta using some default size distribution law.
@@ -28,7 +27,7 @@ trait HasDeltaOperations[@specialized(csp) ChangeType, @specialized(csp) ChangeS
     * @param rng the random number generator.
     * @return the size of the just-initialized delta.
     */
-  def initializeDeltaWithDefaultSize(delta: OrderedSet[ChangeType], nChanges: ChangeSizeType, expectedSize: Double, rng: Random): Int
+  def initializeDeltaWithDefaultSize(delta: OrderedSet[ChangeIndexType], nChanges: ChangeIndexType, expectedSize: Double, rng: Random): Int
 
   /**
     * Initializes the given delta using the specified delta size.
@@ -37,7 +36,7 @@ trait HasDeltaOperations[@specialized(csp) ChangeType, @specialized(csp) ChangeS
     * @param size the size which the delta must have.
     * @param rng the random number generator.
     */
-  def initializeDeltaWithGivenSize(delta: OrderedSet[ChangeType], nChanges: ChangeSizeType, size: Int, rng: Random): Unit
+  def initializeDeltaWithGivenSize(delta: OrderedSet[ChangeIndexType], nChanges: ChangeIndexType, size: Int, rng: Random): Unit
 
   /**
     * Initializes the given delta using some default distribution law, but taking
@@ -47,7 +46,7 @@ trait HasDeltaOperations[@specialized(csp) ChangeType, @specialized(csp) ChangeS
     * @param rng the random number generator.
     * @return the size of the just-initialized delta.
     */
-  def initializeDeltaFromExisting(delta: OrderedSet[ChangeType], source: OrderedSet[ChangeType],
+  def initializeDeltaFromExisting(delta: OrderedSet[ChangeIndexType], source: OrderedSet[ChangeIndexType],
                                   expectedSize: Double, rng: Random): Int
 }
 
@@ -55,6 +54,6 @@ trait HasDeltaOperations[@specialized(csp) ChangeType, @specialized(csp) ChangeS
   * This companion object contains several known implementations of the `HasDeltaOperations` trait.
   */
 object HasDeltaOperations {
-  implicit def forInt:  HasDeltaOperations[Int, Int]   = IntSetOps
-  implicit def forLong: HasDeltaOperations[Long, Long] = LongSetOps
+  implicit def forInt:  HasDeltaOperations[Int]  = IntSetOps
+  implicit def forLong: HasDeltaOperations[Long] = LongSetOps
 }
