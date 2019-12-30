@@ -3,12 +3,10 @@ package ru.ifmo.onell.delta
 import java.util.concurrent.{ThreadLocalRandom => Random}
 
 import ru.ifmo.onell.HasDeltaOperations
-import ru.ifmo.onell.util.{BinomialScanner, HierarchicIntSet, OrderedSet}
+import ru.ifmo.onell.util.{BinomialScanner, OrderedSet, SparseLongSet}
 
 object LongSetOps extends HasDeltaOperations[Long, Long] {
-  override def createStorage(nChanges: Long): OrderedSet[Long] = {
-    new HierarchicIntSet(nChanges)
-  }
+  override def createStorage(nChanges: Long): OrderedSet[Long] = new SparseLongSet()
 
   override def initializeDeltaWithDefaultSize(delta: OrderedSet[Long], nChanges: Long, expectedSize: Double, rng: Random): Int = {
     delta.clear()
