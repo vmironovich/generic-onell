@@ -153,7 +153,7 @@ object OnePlusLambdaLambdaGA {
     override def notifyChildIsWorse(): Unit = {}
   }
 
-  def adaptiveLambda(onSuccess: Double, onFailure: Double, threshold: Long => Double)(size: Long): LambdaTuning = new LambdaTuning {
+  def oneFifthLambda(onSuccess: Double, onFailure: Double, threshold: Long => Double)(size: Long): LambdaTuning = new LambdaTuning {
     private[this] var value = 1.0
     private[this] val maxValue = threshold(size)
 
@@ -163,8 +163,8 @@ object OnePlusLambdaLambdaGA {
     override def notifyChildIsWorse(): Unit = value = math.min(maxValue, math.max(1, value * onFailure))
   }
 
-  def defaultAdaptiveLambda(size: Long): LambdaTuning = adaptiveLambda(OneFifthOnSuccess, OneFifthOnFailure, n => n)(size)
-  def logCappedAdaptiveLambda(size: Long): LambdaTuning = adaptiveLambda(OneFifthOnSuccess, OneFifthOnFailure, n => 2 * math.log(n + 1))(size)
+  def defaultOneFifthLambda(size: Long): LambdaTuning = oneFifthLambda(OneFifthOnSuccess, OneFifthOnFailure, n => n)(size)
+  def logCappedOneFifthLambda(size: Long): LambdaTuning = oneFifthLambda(OneFifthOnSuccess, OneFifthOnFailure, n => 2 * math.log(n + 1))(size)
 
   case class ConstantTuning(mutationProbabilityQuotient: Double,
                             crossoverProbabilityQuotient: Double,
