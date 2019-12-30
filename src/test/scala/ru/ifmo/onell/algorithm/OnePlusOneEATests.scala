@@ -2,9 +2,10 @@ package ru.ifmo.onell.algorithm
 
 import scala.Ordering.Double.IeeeOrdering
 
-import ru.ifmo.onell.problem.{OneMax, OneMaxPerm}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import ru.ifmo.onell.problem.{OneMax, OneMaxPerm}
 
 class OnePlusOneEATests extends AnyFlatSpec with Matchers {
   "(1+1) EA" should "perform as expected on OneMax" in {
