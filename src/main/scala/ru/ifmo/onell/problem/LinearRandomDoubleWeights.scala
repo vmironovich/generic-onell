@@ -3,13 +3,13 @@ package ru.ifmo.onell.problem
 import java.util.Random
 
 import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
-import ru.ifmo.onell.util.IntSet
+import ru.ifmo.onell.util.OrderedSet
 
-class LinearRandomWeights(val problemSize: Int, val maxWeight: Double)
+class LinearRandomDoubleWeights(val problemSize: Int, val maxWeight: Double, randomSeed: Long)
   extends HasEvaluation[Array[Boolean], Double]
-    with HasIncrementalEvaluation[Array[Boolean], IntSet, Double]
+    with HasIncrementalEvaluation[Array[Boolean], Int, Double]
 {
-  private[this] val rng = new Random(123456789)
+  private[this] val rng = new Random(randomSeed)
   private[this] val weights = Array.fill(problemSize)(rng.nextDouble() * (maxWeight - 1) + 1)
   private[this] val weightSum = weights.sum
 
@@ -25,14 +25,15 @@ class LinearRandomWeights(val problemSize: Int, val maxWeight: Double)
 
   override def compare(lhs: Double, rhs: Double): Int = lhs.compare(rhs)
   override def isOptimalFitness(fitness: Double): Boolean = fitness > weightSum - 1e-1
-  override def numberOfChangesForProblemSize(problemSize: Int): Long = problemSize
+  override def numberOfChangesForProblemSize(problemSize: Int): Int = problemSize
+  override def sizeTypeToLong(st: Int): Long = st
 
-  override def applyDelta(ind: Array[Boolean], delta: IntSet, currentFitness: Double): Double = {
+  override def applyDelta(ind: Array[Boolean], delta: OrderedSet[Int], currentFitness: Double): Double = {
     val size = delta.size
     var newFitness = currentFitness
     var i = 0
     while (i < size) {
-      val idx = delta(i).toInt
+      val idx = delta(i)
       newFitness += (if (ind(idx)) -1 else 1) * weights(idx)
       ind(idx) ^= true
       i += 1
@@ -40,21 +41,21 @@ class LinearRandomWeights(val problemSize: Int, val maxWeight: Double)
     newFitness
   }
 
-  override def unapplyDelta(ind: Array[Boolean], delta: IntSet): Unit = {
+  override def unapplyDelta(ind: Array[Boolean], delta: OrderedSet[Int]): Unit = {
     val size = delta.size
     var i = 0
     while (i < size) {
-      ind(delta(i).toInt) ^= true
+      ind(delta(i)) ^= true
       i += 1
     }
   }
 
-  override def evaluateAssumingDelta(ind: Array[Boolean], delta: IntSet, currentFitness: Double): Double = {
+  override def evaluateAssumingDelta(ind: Array[Boolean], delta: OrderedSet[Int], currentFitness: Double): Double = {
     val size = delta.size
     var newFitness = currentFitness
     var i = 0
     while (i < size) {
-      val idx = delta(i).toInt
+      val idx = delta(i)
       newFitness += (if (ind(idx)) -1 else 1) * weights(idx)
       i += 1
     }

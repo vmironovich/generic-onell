@@ -1,111 +1,111 @@
 package ru.ifmo.onell
 
 import java.io.PrintWriter
-import java.util.concurrent.{Executors, TimeUnit}
+import java.util.Random
 
-import scala.collection.parallel.CollectionConverters._
 import scala.util.Using
 
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
-import ru.ifmo.onell.problem.{LinearRandomWeights, OneMax, OneMaxPerm}
+import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
+import ru.ifmo.onell.util.par._
 
 object Main {
   private def usage(): Nothing = {
-    System.err.println("Usage: Main <bits:om:simple | bits:l2:simple | perm:om:simple>")
+    System.err.println("Usage: Main <bits:om:simple | bits:l2d:simple | bits:sat:simple | perm:om:simple>")
     sys.exit()
   }
 
-  trait Scheduler {
-    def start(): Unit
-    def addTask(fun: => String): Unit
-    def finish(): Unit
-  }
+  private class Context(powers: Range, nRuns: Int, nThreads: Int, outName: String) {
+    private[this] val jsonPrefix = "["
+    private[this] val jsonSeparator = "\n,"
+    private[this] val jsonSuffix = "\n]\n"
 
-  class SingleThreaded(pw: PrintWriter, firstLine: String, lastLine: String) extends Scheduler {
-    override def start(): Unit = pw.println(firstLine)
-    override def addTask(fun: => String): Unit = {
-      val line = fun
-      pw.println(line)
-      pw.flush()
-      println(line)
-    }
-    override def finish(): Unit = pw.println(lastLine)
-  }
-
-  class MultiThreaded(pw: PrintWriter, firstLine: String, lastLine: String) extends Scheduler {
-    private[this] val lock = new AnyRef
-    private val pool = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
-    override def start(): Unit = pw.println(firstLine)
-    override def addTask(fun: => String): Unit = pool.execute(() => {
-      val line = fun
-      lock synchronized {
-        pw.println(line)
-        pw.flush()
-        println(line)
+    def run(fun: (Executor, Int) => Any): Unit = {
+      Using.resource(new PrintWriter(outName)) { moreOut =>
+        Using.resource(makeScheduler(moreOut)) { scheduler =>
+          val multiplexer = new Multiplexer(scheduler, nRuns)
+          for (p <- powers) {
+            fun(multiplexer, 1 << p)
+          }
+        }
       }
-    })
-    override def finish(): Unit = {
-      pool.shutdown()
-      pool.awaitTermination(365, TimeUnit.DAYS)
-      pw.println(lastLine)
+    }
+
+    private def makeScheduler(moreOut: PrintWriter): Executor = if (nThreads == 1) {
+      new SequentialExecutor(moreOut, jsonPrefix, jsonSeparator, jsonSuffix)
+    } else {
+      new ParallelExecutor(moreOut, jsonPrefix, jsonSeparator, jsonSuffix, nThreads)
     }
   }
 
-  private def bitsOneMaxSimple(powers: Range, nRuns: Int, parallel: Boolean, outName: String): Unit = {
+  private def bitsOneMaxSimple(context: Context): Unit = {
     val algorithms = Seq(
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
       "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
       "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedAdaptiveLambda),
       "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.1)),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.3)),
       "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.5)),
       "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.7)),
       "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.9)),
     )
 
-    Using.resource(new PrintWriter(outName)) { moreOut =>
-      val scheduler = if (parallel) {
-        new MultiThreaded(moreOut, "[{}", "]")
-      } else {
-        new SingleThreaded(moreOut, "[{}", "]")
-      }
-      scheduler.start()
-      for (p <- powers; n = 1 << p) {
-        val oneMax = new OneMax(n)
-        for ((name, alg) <- algorithms) {
-          for (_ <- 0 until nRuns) {
-            scheduler addTask {
-              val time = alg.optimize(oneMax)
-              s""",{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
-            }
-          }
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val time = alg.optimize(new OneMax(n))
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
-      scheduler.finish()
     }
   }
 
-  private def bitsLinearSimple(): Unit = {
+  private def bitsLinearDoubleSimple(context: Context): Unit = {
     val algorithms = Seq(
       "RLS" -> RLS,
       "(1+1) EA" -> OnePlusOneEA,
       "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.fixedLambda(8)),
-      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda)
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.5)),
     )
 
-    for ((name, alg) <- algorithms) {
-      print("\\addplot coordinates{")
-      for (n <- (4 to 11).map(i => math.pow(10, i / 2.0).toInt)) {
-        val runs = (0 until 100).par.map(_ => alg.optimize(new LinearRandomWeights(n, 2))).seq
-        val result = runs.sum.toDouble / runs.size / n
-        print(s"($n,$result)")
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val time = alg.optimize(new LinearRandomDoubleWeights(n, 2.0, seeder.nextLong()))
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
       }
-      println("};")
-      println(s"\\addlegendentry{$name};")
     }
   }
 
-  private def permOneMaxSimple(powers: Range, nRuns: Int, parallel: Boolean, outName: String): Unit = {
+  private def bitsMaxSATSimple(context: Context): Unit = {
+    val algorithms = Seq(
+      "RLS" -> RLS,
+      "(1+1) EA" -> OnePlusOneEA,
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedAdaptiveLambda),
+      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.1)),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.3)),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.5)),
+      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.7)),
+      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.powerLawLambda(2.9)),
+    )
+
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt, seeder.nextLong()))
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def permOneMaxSimple(context: Context): Unit = {
     val algorithms = Seq(
       ("RLS", Int.MaxValue, RLS),
       ("(1+1) EA", Int.MaxValue, OnePlusOneEA),
@@ -114,32 +114,16 @@ object Main {
       ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedAdaptiveLambda)),
       ("(1+(λ,λ)) GA, λ<=n", 256, new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultAdaptiveLambda)),
     )
-    Using.resource(new PrintWriter(outName)) { moreOut =>
-      println("[")
-      moreOut.println("[")
-      for (p <- powers; n = 1 << p) {
-        val oneMaxPerm = new OneMaxPerm(n)
-        for ((name, maxN, alg) <- algorithms) {
-          if (n <= maxN) {
-            def oneRun(): Unit = {
-              val time = alg.optimize(oneMaxPerm)
-              synchronized {
-                val line = s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n2":${time.toDouble / n / n}},"""
-                println(line)
-                moreOut.println(line)
-              }
-            }
 
-            if (parallel) {
-              for (_ <- (0 until nRuns).par) oneRun()
-            } else {
-              for (_ <- 0 until nRuns) oneRun()
-            }
+    context.run { (scheduler, n) =>
+      for ((name, maxN, alg) <- algorithms) {
+        if (n <= maxN) {
+          scheduler.addTask {
+            val time = alg.optimize(new OneMaxPerm(n))
+            s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n2":${time.toDouble / n / n}}"""
           }
         }
       }
-      println("{}]")
-      moreOut.println("{}]")
     }
   }
 
@@ -152,21 +136,21 @@ object Main {
     }
   }
 
+  private def parseContext(args: Array[String]): Context = new Context(
+    powers   = args.getOption("--from").toInt to args.getOption("--to").toInt,
+    nRuns    = args.getOption("--runs").toInt,
+    nThreads = args.getOption("--threads").toInt,
+    outName  = args.getOption("--out")
+  )
+
   def main(args: Array[String]): Unit = {
     if (args.length == 0) {
       usage()
     } else args(0) match {
-      case "bits:om:simple" =>
-        bitsOneMaxSimple(powers   = args.getOption("--from").toInt to args.getOption("--to").toInt,
-                         nRuns    = args.getOption("--runs").toInt,
-                         parallel = args.contains("--par"),
-                         outName  = args.getOption("--out"))
-      case "bits:l2:simple" => bitsLinearSimple()
-      case "perm:om:simple" =>
-        permOneMaxSimple(powers   = args.getOption("--from").toInt to args.getOption("--to").toInt,
-                         nRuns    = args.getOption("--runs").toInt,
-                         parallel = args.contains("--par"),
-                         outName  = args.getOption("--out"))
+      case "bits:om:simple"  => bitsOneMaxSimple(parseContext(args))
+      case "bits:l2d:simple"  => bitsLinearDoubleSimple(parseContext(args))
+      case "bits:sat:simple" => bitsMaxSATSimple(parseContext(args))
+      case "perm:om:simple"  => permOneMaxSimple(parseContext(args))
       case _ => usage()
     }
   }

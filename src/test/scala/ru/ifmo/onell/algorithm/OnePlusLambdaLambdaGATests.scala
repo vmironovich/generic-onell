@@ -2,7 +2,6 @@ package ru.ifmo.onell.algorithm
 
 import scala.Ordering.Double.IeeeOrdering
 
-
 import ru.ifmo.onell.problem.{OneMax, OneMaxPerm}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
