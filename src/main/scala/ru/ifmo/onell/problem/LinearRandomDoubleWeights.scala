@@ -3,7 +3,7 @@ package ru.ifmo.onell.problem
 import java.util.Random
 
 import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
-import ru.ifmo.onell.util.OrderedSet
+import ru.ifmo.onell.util.{Helpers, OrderedSet}
 
 class LinearRandomDoubleWeights(val problemSize: Int, val maxWeight: Double, randomSeed: Long)
   extends HasEvaluation[Array[Boolean], Double]
@@ -41,14 +41,7 @@ class LinearRandomDoubleWeights(val problemSize: Int, val maxWeight: Double, ran
     newFitness
   }
 
-  override def unapplyDelta(ind: Array[Boolean], delta: OrderedSet[Int]): Unit = {
-    val size = delta.size
-    var i = 0
-    while (i < size) {
-      ind(delta(i)) ^= true
-      i += 1
-    }
-  }
+  override def unapplyDelta(ind: Array[Boolean], delta: OrderedSet[Int]): Unit = Helpers.flipEachBit(ind, delta)
 
   override def evaluateAssumingDelta(ind: Array[Boolean], delta: OrderedSet[Int], currentFitness: Double): Double = {
     val size = delta.size
