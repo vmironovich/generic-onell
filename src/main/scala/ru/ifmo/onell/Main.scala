@@ -148,7 +148,7 @@ object Main {
       usage()
     } else args(0) match {
       case "bits:om:simple"  => bitsOneMaxSimple(parseContext(args))
-      case "bits:l2d:simple"  => bitsLinearDoubleSimple(parseContext(args))
+      case "bits:l2d:simple" => bitsLinearDoubleSimple(parseContext(args))
       case "bits:sat:simple" => bitsMaxSATSimple(parseContext(args))
       case "perm:om:simple"  => permOneMaxSimple(parseContext(args))
       case _ => usage()
