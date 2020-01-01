@@ -52,4 +52,12 @@ class RLSTests extends AnyFlatSpec with Matchers {
     val found = runs.sum.toDouble / runs.size
     found should (be <= expected * 1.4)
   }
+
+  it should "log improvements correctly" in {
+    val size = 200
+    val om = new OneMax(size)
+    val logger = new ValidationLogger
+    val calls = RLS.optimize(om, logger)
+    logger.calls shouldBe calls - 1
+  }
 }

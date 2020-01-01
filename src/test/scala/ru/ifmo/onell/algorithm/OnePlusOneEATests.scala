@@ -24,4 +24,12 @@ class OnePlusOneEATests extends AnyFlatSpec with Matchers {
     val expected = size / 2.0 * size * (1 to size / 2).map(1.0 / _).sum * (math.E - 1)
     runs.count(_ < expected) should (be >= 7)
   }
+
+  it should "log improvements correctly" in {
+    val size = 200
+    val om = new OneMax(size)
+    val logger = new ValidationLogger
+    val calls = OnePlusOneEA.optimize(om, logger)
+    logger.calls shouldBe calls - 1
+  }
 }

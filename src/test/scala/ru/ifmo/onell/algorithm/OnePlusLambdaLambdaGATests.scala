@@ -25,4 +25,13 @@ class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
     val found = runs.sum.toDouble / runs.size
     found should (be <= 1.1e5)
   }
+
+  it should "log improvements correctly" in {
+    val size = 200
+    val om = new OneMax(size)
+    val logger = new ValidationLogger
+    val ll = new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultOneFifthLambda)
+    val calls = ll.optimize(om, logger)
+    logger.calls shouldBe calls - 1
+  }
 }
