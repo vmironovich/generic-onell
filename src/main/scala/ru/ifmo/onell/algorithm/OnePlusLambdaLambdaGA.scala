@@ -11,7 +11,10 @@ import ru.ifmo.onell.{HasDeltaOperations, HasEvaluation, HasIncrementalEvaluatio
 import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSpecialization => fsp}
 import OnePlusLambdaLambdaGA._
 
-class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: ConstantTuning = defaultTuning)
+class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
+                            constantTuning: ConstantTuning = defaultTuning,
+                            populationRounding: PopulationSizeRounding = roundDownPopulationSize,
+                            crossoverStrength: CrossoverStrength = defaultCrossoverStrength)
   extends Optimizer
 {
   override def optimize[I, @sp(fsp) F, @sp(csp) C]
@@ -81,11 +84,9 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
     def iteration(f: F, evaluationsSoFar: Long): Long = if (fitness.isOptimalFitness(f)) evaluationsSoFar else {
       val lambda = lambdaP.lambda(rng)
 
-      val crossoverProbability = constantTuning.crossoverProbabilityQuotient * (1.0 / lambda)
-
       val mutationExpectedChanges = constantTuning.mutationProbabilityQuotient * lambda
-      val mutationPopSize = math.max(1, (lambda * constantTuning.firstPopulationSizeQuotient).toInt)
-      val crossoverPopSize = math.max(1, (lambda * constantTuning.secondPopulationSizeQuotient).toInt)
+      val mutationPopSize = math.max(1, populationRounding(lambda * constantTuning.firstPopulationSizeQuotient, rng))
+      val crossoverPopSize = math.max(1, populationRounding(lambda * constantTuning.secondPopulationSizeQuotient, rng))
 
       val mutantDistance = initMutation(mutationExpectedChanges)
       val bestMutantFitness = runMutations(mutationPopSize, f, mutantDistance)
@@ -93,7 +94,9 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
       crossoverBest.copyFrom(mutationBest)
 
       aux.initialize(bestMutantFitness)
-      runCrossover(crossoverPopSize, f, crossoverProbability * mutantDistance, mutantDistance, aux)
+      runCrossover(crossoverPopSize, f,
+                   crossoverStrength(lambda, mutantDistance, constantTuning.crossoverProbabilityQuotient),
+                   mutantDistance, aux)
       val bestCrossFitness = aux.fitness
       val crossEvs = aux.calls
 
@@ -129,6 +132,27 @@ object OnePlusLambdaLambdaGA {
     def notifyChildIsEqual(): Unit
     def notifyChildIsWorse(): Unit
   }
+
+  trait PopulationSizeRounding {
+    def apply(fpValue: Double, rng: Random): Int
+  }
+
+  final val roundUpPopulationSize: PopulationSizeRounding = (fpValue: Double, _: Random) => math.ceil(fpValue).toInt
+  final val roundDownPopulationSize: PopulationSizeRounding = (fpValue: Double, _: Random) => fpValue.toInt
+  final val probabilisticPopulationSize: PopulationSizeRounding = (fpValue: Double, rng: Random) => {
+    val lower = math.floor(fpValue).toInt
+    val upper = math.ceil(fpValue).toInt
+    if (lower == upper || rng.nextDouble() < upper - fpValue) lower else upper
+  }
+
+  trait CrossoverStrength {
+    def apply(lambda: Double, mutantDistance: Int, quotient: Double): Double
+  }
+
+  final val defaultCrossoverStrength: CrossoverStrength =
+    (lambda: Double, mutantDistance: Int, quotient: Double) => quotient / lambda * mutantDistance
+  final val homogeneousCrossoverStrength: CrossoverStrength =
+    (_: Double, _: Int, quotient: Double) => quotient
 
   def fixedLambda(value: Double)(size: Long): LambdaTuning = new LambdaTuning {
     override def lambda(rng: Random): Double = value
