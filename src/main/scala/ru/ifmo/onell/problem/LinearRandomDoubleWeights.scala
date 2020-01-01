@@ -23,7 +23,7 @@ class LinearRandomDoubleWeights(val problemSize: Int, val maxWeight: Double, ran
     rv
   }
 
-  override def compare(lhs: Double, rhs: Double): Int = lhs.compare(rhs)
+  override def compare(lhs: Double, rhs: Double): Int = java.lang.Double.compare(lhs, rhs)
   override def isOptimalFitness(fitness: Double): Boolean = fitness > weightSum - 1e-1
   override def numberOfChangesForProblemSize(problemSize: Int): Int = problemSize
   override def sizeTypeToLong(st: Int): Long = st
