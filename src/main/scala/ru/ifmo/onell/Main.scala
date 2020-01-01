@@ -13,7 +13,7 @@ import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 
 object Main {
   private def usage(): Nothing = {
-    System.err.println("Usage: Main <bits:om:simple | bits:l2d:simple | bits:sat:simple | perm:om:simple>")
+    System.err.println("Usage: Main <bits:om:simple | bits:l2d:simple | bits:sat:simple | perm:om:simple | bits:om:tuning | bits:l2d:tuning | 3d>")
     sys.exit()
   }
 
@@ -63,6 +63,26 @@ object Main {
     }
   }
 
+  private def bitsOneMaxTunings(context: Context): Unit = {
+    val algorithms = Seq(
+      "Up/Def"   -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, defaultTuning, roundUpPopulationSize, defaultCrossoverStrength),
+      "Down/Def" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, defaultTuning, roundDownPopulationSize, defaultCrossoverStrength),
+      "Rnd/Def"  -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, defaultTuning, probabilisticPopulationSize, defaultCrossoverStrength),
+      "Up/Hom"   -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, defaultTuning, roundUpPopulationSize, homogeneousCrossoverStrength),
+      "Down/Hom" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, defaultTuning, roundDownPopulationSize, homogeneousCrossoverStrength),
+      "Rnd/Hom"  -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, defaultTuning, probabilisticPopulationSize, homogeneousCrossoverStrength),
+    )
+
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val time = alg.optimize(new OneMax(n))
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
   private def bitsLinearDoubleSimple(context: Context): Unit = {
     val algorithms = Seq(
       "RLS" -> RLS,
@@ -70,6 +90,27 @@ object Main {
       "(1+(λ,λ)) GA, λ=8"        -> new OnePlusLambdaLambdaGA(fixedLambda(8)),
       "(1+(λ,λ)) GA, λ<=n"       -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
       "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5)),
+    )
+
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val time = alg.optimize(new LinearRandomDoubleWeights(n, 2.0, seeder.nextLong()))
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsLinearDoubleTunings(context: Context): Unit = {
+    val algorithms = Seq(
+      "Up/Def"   -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, defaultTuning, roundUpPopulationSize, defaultCrossoverStrength),
+      "Down/Def" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, defaultTuning, roundDownPopulationSize, defaultCrossoverStrength),
+      "Rnd/Def"  -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, defaultTuning, probabilisticPopulationSize, defaultCrossoverStrength),
+      "Up/Hom"   -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, defaultTuning, roundUpPopulationSize, homogeneousCrossoverStrength),
+      "Down/Hom" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, defaultTuning, roundDownPopulationSize, homogeneousCrossoverStrength),
+      "Rnd/Hom"  -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, defaultTuning, probabilisticPopulationSize, homogeneousCrossoverStrength),
     )
 
     val seeder = new Random(314252354)
@@ -210,6 +251,8 @@ object Main {
       case "bits:l2d:simple" => bitsLinearDoubleSimple(parseContext(args))
       case "bits:sat:simple" => bitsMaxSATSimple(parseContext(args))
       case "perm:om:simple"  => permOneMaxSimple(parseContext(args))
+      case "bits:om:tuning"  => bitsOneMaxTunings(parseContext(args))
+      case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args))
       case "3d" => collect3DPlots(args(1).toInt)
       case _ => usage()
     }
