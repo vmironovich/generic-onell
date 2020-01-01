@@ -20,6 +20,6 @@ trait Optimizer {
     * @return the number of evaluations until an optimum is found.
     */
   def optimize[I, @sp(fsp) F, @sp(csp) С](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, С, F],
-                                          improvementLogger: ImprovementLogger[F] = ImprovementLogger.dummyLogger[F])
+                                          improvementLogger: IterationLogger[F] = IterationLogger.dummyLogger[F])
                                          (implicit deltaOps: HasDeltaOperations[С], indOps: HasIndividualOperations[I]): Long
 }

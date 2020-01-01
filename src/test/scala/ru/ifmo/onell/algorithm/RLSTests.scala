@@ -58,6 +58,7 @@ class RLSTests extends AnyFlatSpec with Matchers {
     val om = new OneMax(size)
     val logger = new ValidationLogger
     val calls = RLS.optimize(om, logger)
-    logger.calls shouldBe calls - 1
+    logger.fitness shouldBe 200
+    logger.evaluations shouldBe calls
   }
 }

@@ -32,6 +32,7 @@ class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
     val logger = new ValidationLogger
     val ll = new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultOneFifthLambda)
     val calls = ll.optimize(om, logger)
-    logger.calls shouldBe calls - 1
+    logger.fitness shouldBe 200
+    logger.evaluations shouldBe calls
   }
 }

@@ -7,7 +7,7 @@ import scala.collection.mutable
 import scala.{specialized => sp}
 import scala.util.chaining._
 
-import ru.ifmo.onell.{HasDeltaOperations, HasEvaluation, HasIncrementalEvaluation, HasIndividualOperations, ImprovementLogger, Optimizer}
+import ru.ifmo.onell.{HasDeltaOperations, HasEvaluation, HasIncrementalEvaluation, HasIndividualOperations, IterationLogger, Optimizer}
 import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSpecialization => fsp}
 import OnePlusLambdaLambdaGA._
 
@@ -16,7 +16,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
 {
   override def optimize[I, @sp(fsp) F, @sp(csp) C]
     (fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, C, F],
-     improvementLogger: ImprovementLogger[F])
+     iterationLogger: IterationLogger[F])
     (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I]): Long =
   {
     val problemSize = fitness.problemSize
@@ -78,9 +78,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
     }
 
     @tailrec
-    def iteration(f: F, evaluationsSoFar: Long, sinceLastImprovement: Long): Long = if (fitness.isOptimalFitness(f)) {
-      evaluationsSoFar
-    } else {
+    def iteration(f: F, evaluationsSoFar: Long): Long = if (fitness.isOptimalFitness(f)) evaluationsSoFar else {
       val lambda = lambdaP.lambda(rng)
 
       val crossoverProbability = constantTuning.crossoverProbabilityQuotient * (1.0 / lambda)
@@ -108,22 +106,19 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning, constantTuning: 
         lambdaP.notifyChildIsEqual()
       }
 
+      val iterationCost = mutationPopSize + crossEvs
       val nextFitness = if (fitnessComparison <= 0) {
         // maybe replace with silent application of delta
         fitness.applyDelta(individual, crossoverBest, f).tap(nf => assert(fitness.compare(bestCrossFitness, nf) == 0))
       } else f
-
-      val iterationCost = mutationPopSize + crossEvs
-      if (fitnessComparison < 0) {
-        improvementLogger.logImprovement(sinceLastImprovement + iterationCost, f, bestCrossFitness)
-        iteration(nextFitness, evaluationsSoFar + iterationCost, 0)
-      } else {
-        iteration(nextFitness, evaluationsSoFar + iterationCost, sinceLastImprovement + iterationCost)
-      }
+      iterationLogger.logIteration(evaluationsSoFar + iterationCost, bestCrossFitness)
+      iteration(nextFitness, evaluationsSoFar + iterationCost)
     }
 
     indOps.initializeRandomly(individual, rng)
-    iteration(fitness.evaluate(individual), 1, 0)
+    val firstFitness = fitness.evaluate(individual)
+    iterationLogger.logIteration(1, firstFitness)
+    iteration(firstFitness, 1)
   }
 }
 
