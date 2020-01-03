@@ -15,6 +15,17 @@ class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
     val runs = IndexedSeq.fill(100)(ll.optimize(om))
     val found = runs.sum.toDouble / runs.size
     found should (be <= 1300.0)
+    found should (be >= 1100.0)
+  }
+
+  it should "perform as expected on OneMax without being practice-aware" in {
+    val size = 200
+    val om = new OneMax(size)
+    val ll = new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.defaultOneFifthLambda, bePracticeAware = false)
+    val runs = IndexedSeq.fill(100)(ll.optimize(om))
+    val found = runs.sum.toDouble / runs.size
+    found should (be <= 2100.0)
+    found should (be >= 1800.0)
   }
 
   it should "perform as expected on OneMaxPerm" in {
