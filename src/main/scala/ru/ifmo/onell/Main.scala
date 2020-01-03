@@ -2,9 +2,11 @@ package ru.ifmo.onell
 
 import java.io.PrintWriter
 import java.util.Random
+import java.util.concurrent.{Callable, Executors, TimeUnit}
 
 import scala.util.Using
 import scala.Ordering.Double.IeeeOrdering
+import scala.jdk.CollectionConverters._
 
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
 import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, LinearRandomIntegerWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
@@ -13,7 +15,7 @@ import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 
 object Main {
   private def usage(): Nothing = {
-    System.err.println("Usage: Main <bits:om:simple | bits:l2d:simple | bits:sat:simple | perm:om:simple | bits:om:tuning | bits:l2d:tuning | 3d>")
+    System.err.println("Usage: Main <bits:om:simple | bits:l2d:simple | bits:sat:simple | perm:om:simple | bits:om:tuning | bits:l2d:tuning | bits:li:3d>")
     sys.exit()
   }
 
@@ -170,8 +172,22 @@ object Main {
     }
   }
 
-  private class HammingImprovementCollector(size: Int) extends IterationLogger[LinearRandomIntegerWeights.FAHD] {
+  private class HammingImprovementStatistics(size: Int) {
     private[this] val hammingCounts, hammingIncrements = new Array[Long](size + 1)
+
+    def consume(distance: Int, evaluations: Long, increment: Long): Unit = synchronized {
+      hammingCounts(distance) += evaluations
+      hammingIncrements(distance) += increment
+    }
+
+    def extract(target: Array[Double]): Unit = {
+      for (i <- 1 to size / 2) {
+        target(i) = hammingIncrements(i).toDouble / hammingCounts(i)
+      }
+    }
+  }
+
+  private class HammingImprovementCollector(stats: HammingImprovementStatistics) extends IterationLogger[LinearRandomIntegerWeights.FAHD] {
     private[this] var lastEvaluations, lastFitness = 0L
     private[this] var lastDistance = -1
 
@@ -182,47 +198,74 @@ object Main {
         lastFitness = fitness.fitness
       } else {
         if (fitness.fitness > lastFitness) {
-          hammingCounts(lastDistance) += evaluations - lastEvaluations
-          hammingIncrements(lastDistance) += lastDistance - fitness.distance
+          stats.consume(lastDistance, evaluations - lastEvaluations, lastDistance - fitness.distance)
           lastEvaluations = evaluations
           lastDistance = fitness.distance
           lastFitness = fitness.fitness
         }
       }
     }
-
-    def extract(target: Array[Double]): Unit = {
-      for (i <- 1 to size / 2) {
-        target(i) = hammingIncrements(i).toDouble / hammingCounts(i)
-      }
-    }
   }
 
-  private def collect3DPlots(weight: Int): Unit = {
-    Using.resource(new PrintWriter("dump.txt")) { out =>
-      val rng = new Random(9234352524211L)
-      val n = 1000
-      val runs = 1000
-      val arrays = Array.ofDim[Double](100, n / 2 + 1)
-      def lambdaGenFun(lg: Int): Double = math.pow(1.05, lg)
+  //noinspection SameParameterValue: IDEA wrongly reports `file` to have the same parameter value for interpolated arg
+  private def collect3DPlots(optimizerFromLambda: Double => OnePlusLambdaLambdaGA,
+                             n: Int, runs: Int, lambdaPower: Double, weight: Int, file: String): Unit = {
+    val executor = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
+    Using.resource(new PrintWriter(file + ".txt")) { out =>
+      Using.resource(new PrintWriter(file + ".raw")) { raw =>
+        val rng = new Random(9234352524211L)
+        val maxLambda = (math.log(n) / 1.25 / math.log(lambdaPower)).toInt
+        val arrays = Array.ofDim[Double](maxLambda, n / 2 + 1)
 
-      for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
-        val fun = new LinearRandomIntegerWeights(n, weight, rng.nextLong())
-        val oll = new OnePlusLambdaLambdaGA(fixedLambda(lambda))
-        val logger = new HammingImprovementCollector(n)
-        for (_ <- 0 until runs) oll.optimize(fun, logger)
-        logger.extract(arrays(lambdaGen))
-        println(s"lambda $lambda done")
-      }
-      for (dist <- 1 to n / 2) {
-        val sumAcross = arrays.view.map(_(dist)).max
-        arrays.foreach(_(dist) /= sumAcross)
-      }
-      for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
-        for (dist <- 1 to n / 2) {
-          out.println(s"$dist $lambda ${arrays(lambdaGen)(dist)}")
+        def lambdaGenFun(lg: Int): Double = math.pow(lambdaPower, lg)
+
+        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
+          val fun = new LinearRandomIntegerWeights(n, weight, rng.nextLong())
+          val oll = optimizerFromLambda(lambda)
+          val logger = new HammingImprovementStatistics(n)
+
+          def newCallable(): Callable[Unit] = () => oll.optimize(fun, new HammingImprovementCollector(logger))
+
+          executor.invokeAll((0 until runs).map(_ => newCallable()).asJava).forEach(_.get())
+          logger.extract(arrays(lambdaGen))
+          println(s"[$file]: lambda $lambda done")
         }
-        out.println()
+        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
+          for (dist <- 1 to n / 2) {
+            raw.println(s"$dist $lambda ${arrays(lambdaGen)(dist)}")
+          }
+          raw.println()
+        }
+        for (dist <- 1 to n / 2) {
+          val sumAcross = arrays.view.map(_ (dist)).max
+          arrays.foreach(_ (dist) /= sumAcross)
+        }
+        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
+          for (dist <- 1 to n / 2) {
+            out.println(s"$dist $lambda ${arrays(lambdaGen)(dist)}")
+          }
+          out.println()
+        }
+      }
+    }
+    executor.shutdown()
+    executor.awaitTermination(365, TimeUnit.DAYS)
+  }
+
+  private def collect3DPlots(n: Int, runs: Int, lambdaPower: Double, weight: Int, filePrefix: String): Unit = {
+    val roundings = Seq(roundDownPopulationSize -> "down", roundUpPopulationSize -> "up", probabilisticPopulationSize -> "rnd")
+    val crossovers = Seq(defaultCrossoverStrength -> "def", homogeneousCrossoverStrength -> "hom")
+    val practices = Seq(true -> "aware", false -> "unaware")
+    for ((rounding, roundingName) <- roundings) {
+      for ((crossover, crossoverName) <- crossovers) {
+        for ((practice, practiceName) <- practices) {
+          collect3DPlots(lambda => new OnePlusLambdaLambdaGA(fixedLambda(lambda),
+                                                             populationRounding = rounding,
+                                                             crossoverStrength = crossover,
+                                                             bePracticeAware = practice),
+                         n, runs, lambdaPower, weight,
+                         s"$filePrefix-$roundingName-$crossoverName-$practiceName")
+        }
       }
     }
   }
@@ -253,7 +296,11 @@ object Main {
       case "perm:om:simple"  => permOneMaxSimple(parseContext(args))
       case "bits:om:tuning"  => bitsOneMaxTunings(parseContext(args))
       case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args))
-      case "3d" => collect3DPlots(args(1).toInt)
+      case "bits:li:3d"      => collect3DPlots(n = args.getOption("--n").toInt,
+                                               runs = args.getOption("--runs").toInt,
+                                               lambdaPower = args.getOption("--lambda-power").toDouble,
+                                               weight = args.getOption("--weight").toInt,
+                                               filePrefix = args.getOption("--out-prefix"))
       case _ => usage()
     }
   }
