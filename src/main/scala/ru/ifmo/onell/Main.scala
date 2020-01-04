@@ -2,7 +2,7 @@ package ru.ifmo.onell
 
 import java.io.PrintWriter
 import java.util.Random
-import java.util.concurrent.{Callable, Executors, TimeUnit}
+import java.util.concurrent.{Callable, Executors, ThreadLocalRandom, TimeUnit}
 
 import scala.util.Using
 import scala.Ordering.Double.IeeeOrdering
@@ -15,7 +15,7 @@ import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 
 object Main {
   private def usage(): Nothing = {
-    System.err.println("Usage: Main <bits:om:simple | bits:l2d:simple | bits:sat:simple | perm:om:simple | bits:om:tuning | bits:l2d:tuning | bits:li:3d>")
+    System.err.println("Usage: Main <bits:om:simple | bits:l2d:simple | bits:sat:simple | perm:om:simple | bits:om:tuning | bits:l2d:tuning | bits:li:3d | bits:li:traces>")
     sys.exit()
   }
 
@@ -187,7 +187,9 @@ object Main {
     }
   }
 
-  private class HammingImprovementCollector(stats: HammingImprovementStatistics) extends IterationLogger[LinearRandomIntegerWeights.FAHD] {
+  private class HammingImprovementCollector(stats: HammingImprovementStatistics)
+    extends IterationLogger[LinearRandomIntegerWeights.FAHD]
+  {
     private[this] var lastEvaluations, lastFitness = 0L
     private[this] var lastDistance = -1
 
@@ -270,6 +272,73 @@ object Main {
     }
   }
 
+  private class LoggerWithLambdaProxy
+    extends IterationLogger[LinearRandomIntegerWeights.FAHD]
+  {
+    private[this] var lastLambda: Double = _
+    private[this] var lastFitness: Long = -1
+    private[this] val builder = new StringBuilder
+
+    override def logIteration(evaluations: Long, fitness: LinearRandomIntegerWeights.FAHD): Unit = {
+      if (fitness.distance != 0 && fitness.fitness >= lastFitness) {
+        lastFitness = fitness.fitness
+        builder.append("(").append(fitness.distance).append(",").append(lastLambda).append(")")
+      }
+    }
+
+    def result(): String = {
+      val result = builder.result()
+      builder.clear()
+      lastFitness = -1
+      result
+    }
+
+    def attachedTuning(realTuning: Long => LambdaTuning)(size: Long): LambdaTuning = new LambdaTuning {
+      private[this] val delegate = realTuning(size)
+      override def lambda(rng: ThreadLocalRandom): Double = {
+        lastLambda = delegate.lambda(rng)
+        lastLambda
+      }
+
+      override def notifyChildIsBetter(): Unit = delegate.notifyChildIsBetter()
+      override def notifyChildIsEqual(): Unit = delegate.notifyChildIsEqual()
+      override def notifyChildIsWorse(): Unit = delegate.notifyChildIsWorse()
+    }
+  }
+
+  //noinspection SameParameterValue: IDEA wrongly reports `file` to have the same parameter value for interpolated arg
+  private def collectTraces(algorithm: (Long => LambdaTuning) => OnePlusLambdaLambdaGA,
+                            n: Int, runs: Int, weight: Int, file: String): Unit = {
+    Using.resource(new PrintWriter(file)) { out =>
+      val rng = new Random(n * 234234 + runs * 912645 + weight * 213425431 + file.hashCode)
+      val logger = new LoggerWithLambdaProxy
+      for (_ <- 0 until runs) {
+        val problem = new LinearRandomIntegerWeights(n, weight, rng.nextLong())
+        val oll = algorithm(logger.attachedTuning(defaultOneFifthLambda))
+        oll.optimize(problem, logger)
+        out.println("\\addplot[black] coordinates {" + logger.result() + "};")
+      }
+    }
+  }
+
+  private def collectTraces(n: Int, runs: Int, weight: Int, filePrefix: String): Unit = {
+    val roundings = Seq(roundDownPopulationSize -> "down", roundUpPopulationSize -> "up", probabilisticPopulationSize -> "rnd")
+    val crossovers = Seq(defaultCrossoverStrength -> "def", homogeneousCrossoverStrength -> "hom")
+    val practices = Seq(true -> "aware", false -> "unaware")
+    for ((rounding, roundingName) <- roundings) {
+      for ((crossover, crossoverName) <- crossovers) {
+        for ((practice, practiceName) <- practices) {
+          collectTraces(gen => new OnePlusLambdaLambdaGA(gen,
+                                                         populationRounding = rounding,
+                                                         crossoverStrength = crossover,
+                                                         bePracticeAware = practice),
+                         n, runs, weight,
+                         s"$filePrefix-$roundingName-$crossoverName-$practiceName.tex")
+        }
+      }
+    }
+  }
+
   private implicit class Options(val args: Array[String]) extends AnyVal {
     def getOption(option: String): String = {
       val index = args.indexOf(option)
@@ -301,6 +370,10 @@ object Main {
                                                lambdaPower = args.getOption("--lambda-power").toDouble,
                                                weight = args.getOption("--weight").toInt,
                                                filePrefix = args.getOption("--out-prefix"))
+      case "bits:li:traces"  => collectTraces(n = args.getOption("--n").toInt,
+                                              runs = args.getOption("--runs").toInt,
+                                              weight = args.getOption("--weight").toInt,
+                                              filePrefix = args.getOption("--out-prefix"))
       case _ => usage()
     }
   }
