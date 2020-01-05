@@ -12,6 +12,7 @@ import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
 import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, LinearRandomIntegerWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
 import ru.ifmo.onell.util.par._
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
+import ru.ifmo.onell.problem.HammingDistance._
 
 object Main {
   private def usage(): Nothing = {
@@ -188,12 +189,12 @@ object Main {
   }
 
   private class HammingImprovementCollector(stats: HammingImprovementStatistics)
-    extends IterationLogger[LinearRandomIntegerWeights.FAHD]
+    extends IterationLogger[FAHD[Long]]
   {
     private[this] var lastEvaluations, lastFitness = 0L
     private[this] var lastDistance = -1
 
-    override def logIteration(evaluations: Long, fitness: LinearRandomIntegerWeights.FAHD): Unit = {
+    override def logIteration(evaluations: Long, fitness: FAHD[Long]): Unit = {
       if (evaluations == 1) { // start
         lastEvaluations = 1
         lastDistance = fitness.distance
@@ -222,7 +223,7 @@ object Main {
         def lambdaGenFun(lg: Int): Double = math.pow(lambdaPower, lg)
 
         for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
-          val fun = new LinearRandomIntegerWeights(n, weight, rng.nextLong())
+          val fun = new LinearRandomIntegerWeights(n, weight, rng.nextLong()).withHammingDistanceTracking
           val oll = optimizerFromLambda(lambda)
           val logger = new HammingImprovementStatistics(n)
 
@@ -273,13 +274,13 @@ object Main {
   }
 
   private class LoggerWithLambdaProxy
-    extends IterationLogger[LinearRandomIntegerWeights.FAHD]
+    extends IterationLogger[FAHD[Long]]
   {
     private[this] var lastLambda: Double = _
     private[this] var lastFitness: Long = -1
     private[this] val builder = new StringBuilder
 
-    override def logIteration(evaluations: Long, fitness: LinearRandomIntegerWeights.FAHD): Unit = {
+    override def logIteration(evaluations: Long, fitness: FAHD[Long]): Unit = {
       if (fitness.distance != 0 && fitness.fitness >= lastFitness) {
         lastFitness = fitness.fitness
         builder.append("(").append(fitness.distance).append(",").append(lastLambda).append(")")
@@ -313,7 +314,7 @@ object Main {
       val rng = new Random(n * 234234 + runs * 912645 + weight * 213425431 + file.hashCode)
       val logger = new LoggerWithLambdaProxy
       for (_ <- 0 until runs) {
-        val problem = new LinearRandomIntegerWeights(n, weight, rng.nextLong())
+        val problem = new LinearRandomIntegerWeights(n, weight, rng.nextLong()).withHammingDistanceTracking
         val oll = algorithm(logger.attachedTuning(defaultOneFifthLambda))
         oll.optimize(problem, logger)
         out.println("\\addplot[black] coordinates {" + logger.result() + "};")
