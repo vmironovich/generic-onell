@@ -5,7 +5,7 @@ import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 
 class OneMaxPerm(val problemSize: Int)
   extends HasEvaluation[Permutation, Int]
-    with HasIncrementalEvaluation[Permutation, Long, Int]
+    with HasIncrementalEvaluation[Permutation, Int, Long]
 {
   override def compare(lhs: Int, rhs: Int): Int = lhs - rhs
   override def isOptimalFitness(fitness: Int): Boolean = fitness == problemSize

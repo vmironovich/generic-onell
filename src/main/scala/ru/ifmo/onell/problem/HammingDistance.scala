@@ -7,15 +7,15 @@ import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 import ru.ifmo.onell.util.Specialization.{fitnessSpecialization => fsp}
 
 object HammingDistance {
-  implicit class Ops[@sp(fsp) F](problem: HasEvaluation[Array[Boolean], F] with HasIncrementalEvaluation[Array[Boolean], Int, F]) {
-    def withHammingDistanceTracking: HasEvaluation[Array[Boolean], FAHD[F]] with HasIncrementalEvaluation[Array[Boolean], Int, FAHD[F]] =
+  implicit class Ops[@sp(fsp) F](problem: HasEvaluation[Array[Boolean], F] with HasIncrementalEvaluation[Array[Boolean], F, Int]) {
+    def withHammingDistanceTracking: HasEvaluation[Array[Boolean], FAHD[F]] with HasIncrementalEvaluation[Array[Boolean], FAHD[F], Int] =
       new Wrapper(problem)
   }
 
   final class FAHD[@sp(fsp) F](val fitness: F, val distance: Int)
 
-  final class Wrapper[@sp(fsp) F](problem: HasEvaluation[Array[Boolean], F] with HasIncrementalEvaluation[Array[Boolean], Int, F])
-    extends HasEvaluation[Array[Boolean], FAHD[F]] with HasIncrementalEvaluation[Array[Boolean], Int, FAHD[F]]
+  final class Wrapper[@sp(fsp) F](problem: HasEvaluation[Array[Boolean], F] with HasIncrementalEvaluation[Array[Boolean], F, Int])
+    extends HasEvaluation[Array[Boolean], FAHD[F]] with HasIncrementalEvaluation[Array[Boolean], FAHD[F], Int]
   {
     // Direct delegates
     override def problemSize: Int = problem.problemSize

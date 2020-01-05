@@ -8,13 +8,13 @@ import ru.ifmo.onell.util.Specialization.{changeSpecialization => cs, fitnessSpe
   * and the description of the change. The individual is assumed to be mutable.
   *
   * @tparam MutableIndividual the type of the individual (e.g. the array of booleans).
-  * @tparam ChangeIndexType the type of the index of a single change (e.g. the index to flip a bit at).
   * @tparam FitnessType the type of the fitness value.
+  * @tparam ChangeIndexType the type of the index of a single change (e.g. the index to flip a bit at).
   */
 trait HasIncrementalEvaluation[
   MutableIndividual,
-  @specialized(cs) ChangeIndexType,
-  @specialized(fs) FitnessType
+  @specialized(fs) FitnessType,
+  @specialized(cs) ChangeIndexType
 ] {
   /**
     * Returns the number of possible changes, given the problem size.

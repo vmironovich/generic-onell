@@ -13,7 +13,7 @@ import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSp
   */
 object RLS extends Optimizer {
   final def optimize[I, @sp(fsp) F, @sp(csp) C]
-    (fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, C, F],
+    (fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, F, C],
      iterationLogger: IterationLogger[F])
     (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I]): Long =
   {
