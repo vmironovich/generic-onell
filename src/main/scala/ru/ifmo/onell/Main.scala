@@ -1,7 +1,7 @@
 package ru.ifmo.onell
 
 import java.io.PrintWriter
-import java.util.Random
+import java.util.{Locale, Random}
 import java.util.concurrent.{Callable, Executors, ThreadLocalRandom, TimeUnit}
 
 import scala.util.Using
@@ -231,12 +231,14 @@ object Main {
     }
   }
 
+  private def to3dPlotNumber(v: Double): String = String.format(Locale.US, "%.2e", v)
+
   //noinspection SameParameterValue: IDEA wrongly reports `file` to have the same parameter value for interpolated arg
   private def collect3DPlots(optimizerFromLambda: Double => OnePlusLambdaLambdaGA,
                              n: Int, runs: Int, lambdaPower: Double, weight: Int, file: String): Unit = {
     val executor = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
-    Using.resource(new PrintWriter(file + ".txt")) { out =>
-      Using.resource(new PrintWriter(file + ".raw")) { raw =>
+    Using.resource(new PrintWriter(file + ".txt.cmp")) { out =>
+      Using.resource(new PrintWriter(file + ".raw.cmp")) { raw =>
         val rng = new Random(9234352524211L)
         val maxLambda = (math.log(n) / 1.25 / math.log(lambdaPower)).toInt
         val arrays = Array.ofDim[Double](maxLambda, n / 2 + 1)
@@ -255,21 +257,19 @@ object Main {
           logger.extract(arrays(lambdaGen))
           println(s"[$file]: lambda $lambda done")
         }
-        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
-          for (dist <- 1 to n / 2) {
-            raw.println(s"$dist $lambda ${arrays(lambdaGen)(dist)}")
-          }
-          raw.println()
+        raw.println(s"lambda power $lambdaPower")
+        raw.println("distance offset 1")
+        for (a <- arrays) {
+          raw.println(a.view.slice(1, n / 2 + 1).map(to3dPlotNumber).mkString(" "))
         }
         for (dist <- 1 to n / 2) {
           val sumAcross = arrays.view.map(_ (dist)).max
           arrays.foreach(_ (dist) /= sumAcross)
         }
-        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
-          for (dist <- 1 to n / 2) {
-            out.println(s"$dist $lambda ${arrays(lambdaGen)(dist)}")
-          }
-          out.println()
+        out.println(s"lambda power $lambdaPower")
+        out.println("distance offset 1")
+        for (a <- arrays) {
+          out.println(a.view.slice(1, n / 2 + 1).map(to3dPlotNumber).mkString(" "))
         }
       }
     }
@@ -297,8 +297,8 @@ object Main {
 
   private def collect3DPlotsPerm(n: Int, runs: Int, lambdaPower: Double, file: String): Unit = {
     val executor = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
-    Using.resource(new PrintWriter(file + ".txt")) { out =>
-      Using.resource(new PrintWriter(file + ".raw")) { raw =>
+    Using.resource(new PrintWriter(file + ".txt.cmp")) { out =>
+      Using.resource(new PrintWriter(file + ".raw.cmp")) { raw =>
         val maxLambda = (math.log(n) / 1.25 / math.log(lambdaPower)).toInt
         val arrays = Array.ofDim[Double](maxLambda, n / 2 + 1)
 
@@ -315,21 +315,19 @@ object Main {
           logger.extract(arrays(lambdaGen))
           println(s"[$file]: lambda $lambda done")
         }
-        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
-          for (dist <- 1 to n / 2) {
-            raw.println(s"$dist $lambda ${arrays(lambdaGen)(dist)}")
-          }
-          raw.println()
+        raw.println(s"lambda power $lambdaPower")
+        raw.println(s"distance offset 2")
+        for (a <- arrays) {
+          raw.println(a.view.slice(2, n / 2 + 1).map(to3dPlotNumber).mkString(" "))
         }
         for (dist <- 1 to n / 2) {
           val sumAcross = arrays.view.map(_ (dist)).max
           arrays.foreach(_ (dist) /= sumAcross)
         }
-        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
-          for (dist <- 1 to n / 2) {
-            out.println(s"$dist $lambda ${arrays(lambdaGen)(dist)}")
-          }
-          out.println()
+        out.println(s"lambda power $lambdaPower")
+        out.println(s"distance offset 2")
+        for (a <- arrays) {
+          out.println(a.view.slice(2, n / 2 + 1).map(to3dPlotNumber).mkString(" "))
         }
       }
     }
