@@ -244,11 +244,12 @@ object Main {
         def lambdaGenFun(lg: Int): Double = math.pow(lambdaPower, lg)
 
         for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
-          val fun = new LinearRandomIntegerWeights(n, weight, rng.nextLong()).withHammingDistanceTracking
           val oll = optimizerFromLambda(lambda)
           val logger = new HammingImprovementStatistics(n)
 
-          def newCallable(): Callable[Unit] = () => oll.optimize(fun, new HammingImprovementCollector(logger))
+          def newCallable(): Callable[Unit] = () => oll.optimize(
+            new LinearRandomIntegerWeights(n, weight, rng.nextLong()).withHammingDistanceTracking,
+            new HammingImprovementCollector(logger))
 
           executor.invokeAll((0 until runs).map(_ => newCallable()).asJava).forEach(_.get())
           logger.extract(arrays(lambdaGen))
