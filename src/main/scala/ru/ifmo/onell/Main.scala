@@ -16,7 +16,7 @@ import ru.ifmo.onell.problem.HammingDistance._
 
 object Main {
   private def usage(): Nothing = {
-    System.err.println("Usage: Main <bits:om:simple | bits:l2d:simple | bits:sat:simple | perm:om:simple | bits:om:tuning | bits:l2d:tuning | bits:li:3d | bits:li:traces>")
+    System.err.println("Usage: Main <bits:om:simple | bits:l2d:simple | bits:sat:simple | perm:om:simple | bits:om:tuning | bits:l2d:tuning | bits:li:3d | bits:li:traces | perm:om:3d>")
     sys.exit()
   }
 
@@ -173,7 +173,7 @@ object Main {
     }
   }
 
-  private class HammingImprovementStatistics(size: Int) {
+  private class HammingImprovementStatistics(val size: Int) {
     private[this] val hammingCounts, hammingIncrements = new Array[Long](size + 1)
 
     def consume(distance: Int, evaluations: Long, increment: Long): Unit = synchronized {
@@ -205,6 +205,27 @@ object Main {
           lastEvaluations = evaluations
           lastDistance = fitness.distance
           lastFitness = fitness.fitness
+        }
+      }
+    }
+  }
+
+  private class PermImprovementCollector(stats: HammingImprovementStatistics)
+    extends IterationLogger[Int]
+  {
+    private[this] var lastEvaluations = 0L
+    private[this] var lastDistance = -1
+
+    override def logIteration(evaluations: Long, fitness: Int): Unit = {
+      val distance = stats.size - fitness
+      if (evaluations == 1) { // start
+        lastEvaluations = 1
+        lastDistance = distance
+      } else {
+        if (distance < lastDistance) {
+          stats.consume(lastDistance, evaluations - lastEvaluations, lastDistance - distance)
+          lastEvaluations = evaluations
+          lastDistance = distance
         }
       }
     }
@@ -271,6 +292,48 @@ object Main {
         }
       }
     }
+  }
+
+  private def collect3DPlotsPerm(n: Int, runs: Int, lambdaPower: Double, file: String): Unit = {
+    val executor = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
+    Using.resource(new PrintWriter(file + ".txt")) { out =>
+      Using.resource(new PrintWriter(file + ".raw")) { raw =>
+        val maxLambda = (math.log(n) / 1.25 / math.log(lambdaPower)).toInt
+        val arrays = Array.ofDim[Double](maxLambda, n / 2 + 1)
+
+        def lambdaGenFun(lg: Int): Double = math.pow(lambdaPower, lg)
+
+        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
+          val fun = new OneMaxPerm(n)
+          val oll = new OnePlusLambdaLambdaGA(fixedLambda(lambda), populationRounding = probabilisticPopulationSize)
+          val logger = new HammingImprovementStatistics(n)
+
+          def newCallable(): Callable[Unit] = () => oll.optimize(fun, new PermImprovementCollector(logger))
+
+          executor.invokeAll((0 until runs).map(_ => newCallable()).asJava).forEach(_.get())
+          logger.extract(arrays(lambdaGen))
+          println(s"[$file]: lambda $lambda done")
+        }
+        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
+          for (dist <- 1 to n / 2) {
+            raw.println(s"$dist $lambda ${arrays(lambdaGen)(dist)}")
+          }
+          raw.println()
+        }
+        for (dist <- 1 to n / 2) {
+          val sumAcross = arrays.view.map(_ (dist)).max
+          arrays.foreach(_ (dist) /= sumAcross)
+        }
+        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
+          for (dist <- 1 to n / 2) {
+            out.println(s"$dist $lambda ${arrays(lambdaGen)(dist)}")
+          }
+          out.println()
+        }
+      }
+    }
+    executor.shutdown()
+    executor.awaitTermination(365, TimeUnit.DAYS)
   }
 
   private class LoggerWithLambdaProxy
@@ -375,6 +438,10 @@ object Main {
                                               runs = args.getOption("--runs").toInt,
                                               weight = args.getOption("--weight").toInt,
                                               filePrefix = args.getOption("--out-prefix"))
+      case "perm:om:3d"      => collect3DPlotsPerm(n = args.getOption("--n").toInt,
+                                                   runs = args.getOption("--runs").toInt,
+                                                   lambdaPower = args.getOption("--lambda-power").toDouble,
+                                                   file = args.getOption("--out"))
       case _ => usage()
     }
   }
