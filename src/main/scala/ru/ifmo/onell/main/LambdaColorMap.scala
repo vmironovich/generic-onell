@@ -60,7 +60,7 @@ object LambdaColorMap extends Main.Module {
     }
 
     def extract(target: Array[Double]): Unit = {
-      for (i <- 1 to size / 2) {
+      for (i <- 1 until target.length) {
         target(i) = hammingIncrements(i).toDouble / hammingCounts(i)
       }
     }
