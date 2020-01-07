@@ -27,7 +27,7 @@ object Main {
 
   object Help extends Main.Module {
     override def name: String = "help"
-    override def shortDescription: String = "Prints this help"
+    override def shortDescription: String = "Prints this help (try help <command> to get help for that command)"
     override def longDescription: Seq[String] = Seq(
       "Without arguments, prints the list of possible commands.",
       "When invoked as 'help <command>, prints the help for that command."
