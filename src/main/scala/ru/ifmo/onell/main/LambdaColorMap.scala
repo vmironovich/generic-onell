@@ -32,6 +32,7 @@ object LambdaColorMap extends Main.Module {
     "        Options are:",
     "             --n            <int>: the problem size",
     "             --runs         <int>: the number of runs for each λ",
+    "             --max-lambda   <double>: the maximum λ to use",
     "             --lambda-power <double>: the multiplicative step for λ to use",
     "             --out-prefix   <string>: the filename prefix to use",
   )
@@ -45,6 +46,7 @@ object LambdaColorMap extends Main.Module {
     case "perm:om"      => collect3DPlotsPerm(n = args.getOption("--n").toInt,
                                               runs = args.getOption("--runs").toInt,
                                               lambdaPower = args.getOption("--lambda-power").toDouble,
+                                              maxLambda = args.getOption("--max-lambda").toDouble,
                                               file = args.getOption("--out-prefix"))
   }
 
@@ -170,12 +172,12 @@ object LambdaColorMap extends Main.Module {
     }
   }
 
-  private def collect3DPlotsPerm(n: Int, runs: Int, lambdaPower: Double, file: String): Unit = {
+  private def collect3DPlotsPerm(n: Int, runs: Int, lambdaPower: Double, maxLambda: Double, file: String): Unit = {
     val executor = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
     Using.resource(new PrintWriter(file + ".txt.cmp")) { out =>
       Using.resource(new PrintWriter(file + ".raw.cmp")) { raw =>
-        val maxLambda = (math.log(n) / 1.25 / math.log(lambdaPower)).toInt
-        val arrays = Array.ofDim[Double](maxLambda, n / 2 + 1)
+        val maxLambdaIndex = (math.log(maxLambda) / math.log(lambdaPower)).toInt
+        val arrays = Array.ofDim[Double](maxLambdaIndex, n + 1)
 
         def lambdaGenFun(lg: Int): Double = math.pow(lambdaPower, lg)
 
@@ -193,16 +195,16 @@ object LambdaColorMap extends Main.Module {
         raw.println(s"lambda power $lambdaPower")
         raw.println(s"distance offset 2")
         for (a <- arrays) {
-          raw.println(a.view.slice(2, n / 2 + 1).map(to3dPlotNumber).mkString(" "))
+          raw.println(a.view.slice(2, n + 1).map(to3dPlotNumber).mkString(" "))
         }
-        for (dist <- 1 to n / 2) {
+        for (dist <- 1 to n) {
           val sumAcross = arrays.view.map(_ (dist)).max
           arrays.foreach(_ (dist) /= sumAcross)
         }
         out.println(s"lambda power $lambdaPower")
         out.println(s"distance offset 2")
         for (a <- arrays) {
-          out.println(a.view.slice(2, n / 2 + 1).map(to3dPlotNumber).mkString(" "))
+          out.println(a.view.slice(2, n + 1).map(to3dPlotNumber).mkString(" "))
         }
       }
     }
