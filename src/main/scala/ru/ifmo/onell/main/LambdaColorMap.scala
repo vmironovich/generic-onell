@@ -177,7 +177,7 @@ object LambdaColorMap extends Main.Module {
     val executor = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
     Using.resource(new PrintWriter(file + ".txt.cmp")) { out =>
       Using.resource(new PrintWriter(file + ".raw.cmp")) { raw =>
-        val maxLambdaIndex = (math.log(maxLambda) / math.log(lambdaPower)).toInt
+        val maxLambdaIndex = 1 + (math.log(maxLambda) / math.log(lambdaPower)).toInt
         val arrays = Array.ofDim[Double](maxLambdaIndex, n + 1)
 
         def lambdaGenFun(lg: Int): Double = math.pow(lambdaPower, lg)
