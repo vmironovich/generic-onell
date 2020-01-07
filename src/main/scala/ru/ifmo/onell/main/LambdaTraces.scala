@@ -19,7 +19,8 @@ object LambdaTraces extends Main.Module {
 
   override def longDescription: Seq[String] = Seq(
     "Runs experiments on how the parameter λ changes over time.",
-    "The experiments are done for linear functions with random integer weights on bit strings. The options are:",
+    "The experiments are done for linear functions with random",
+    "integer weights on bit strings. The options are:",
     "  --n             <int>: the problem size",
     "  --runs          <int>: the number of runs",
     "  --weight        <int>: the maximum weight",

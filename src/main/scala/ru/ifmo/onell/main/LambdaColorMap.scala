@@ -21,7 +21,8 @@ object LambdaColorMap extends Main.Module {
 
   override def longDescription: Seq[String] = Seq(
     "This module supports the following commands:",
-    "  bits:li <options>: runs the experiments for random linear functions with integer weights on bit strings.",
+    "  bits:li <options>: runs the experiments for random linear functions",
+    "                     with integer weights on bit strings.",
     "        Options are:",
     "             --n            <int>: the problem size",
     "             --runs         <int>: the number of runs for each λ",
