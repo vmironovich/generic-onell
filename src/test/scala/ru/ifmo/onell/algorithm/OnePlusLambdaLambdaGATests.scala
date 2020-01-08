@@ -37,7 +37,7 @@ class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
     found should (be <= 1.2e5)
   }
 
-  it should "perform as expected on MAX-SAT with log capping" in {
+  it should "perform as expected on RandomPlanted3SAT with log capping" in {
     val size = 200
     val om = new RandomPlanted3SAT(size, (4 * size * math.log(size)).toInt, 3454353454545L)
     val ll = new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedOneFifthLambda)
