@@ -2,8 +2,6 @@ package ru.ifmo.onell.util
 
 import java.util.Random
 
-import scala.collection.mutable
-
 class SparseLongSet extends OrderedSet[Long] {
   private[this] var elements: Array[Long] = new Array(10)
   private[this] var nElements = 0
@@ -60,10 +58,12 @@ class SparseLongSet extends OrderedSet[Long] {
     val look = element + 1
     val mask = hashTable.length - 1
 
+    @scala.annotation.tailrec
     def scan(index: Int): Int = {
       val elem = hashTable(index)
       if (elem == 0 || elem == look) index else scan((index + 1) & mask)
     }
+
     scan((element * 43).toInt & mask)
   }
 
