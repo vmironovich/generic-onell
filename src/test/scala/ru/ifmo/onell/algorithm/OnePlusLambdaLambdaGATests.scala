@@ -5,7 +5,7 @@ import scala.Ordering.Double.IeeeOrdering
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import ru.ifmo.onell.problem.{OneMax, OneMaxPerm}
+import ru.ifmo.onell.problem.{OneMax, OneMaxPerm, RandomPlanted3SAT}
 
 class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
   "(1+LL) GA" should "perform as expected on OneMax" in {
@@ -35,6 +35,16 @@ class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
     val runs = IndexedSeq.fill(10)(ll.optimize(om))
     val found = runs.sum.toDouble / runs.size
     found should (be <= 1.2e5)
+  }
+
+  it should "perform as expected on MAX-SAT with log capping" in {
+    val size = 200
+    val om = new RandomPlanted3SAT(size, (4 * size * math.log(size)).toInt, 3454353454545L)
+    val ll = new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedOneFifthLambda)
+    val runs = IndexedSeq.fill(100)(ll.optimize(om))
+    val found = runs.sum.toDouble / runs.size
+    found should (be <= 1800.0)
+    found should (be >= 1300.0)
   }
 
   it should "log improvements correctly" in {
