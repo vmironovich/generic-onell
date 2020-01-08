@@ -6,9 +6,7 @@ import ru.ifmo.onell.HasDeltaOperations
 import ru.ifmo.onell.util.{BinomialScanner, DenseIntSet, OrderedSet}
 
 object IntSetOps extends HasDeltaOperations[Int] {
-  override def createStorage(nChanges: Int): OrderedSet[Int] = {
-    new DenseIntSet(nChanges)
-  }
+  override def createStorage(nChanges: Int): OrderedSet[Int] = new DenseIntSet(nChanges)
 
   override def initializeDeltaWithDefaultSize(delta: OrderedSet[Int], nChanges: Int, expectedSize: Double, rng: Random): Int = {
     delta.clear()
