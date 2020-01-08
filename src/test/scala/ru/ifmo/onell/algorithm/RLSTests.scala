@@ -57,7 +57,7 @@ class RLSTests extends AnyFlatSpec with Matchers {
 
   it should "perform as expected on RandomPlanted3SAT" in {
     val size = 200
-    val sat = new RandomPlanted3SAT(size, size * 20, 82365436465L)
+    val sat = new RandomPlanted3SAT(size, size * 20, RandomPlanted3SAT.EasyGenerator, 82365436465L)
     val runs = IndexedSeq.fill(10)(RLS.optimize(sat))
     val expected = size * (1 to size / 2).map(1.0 / _).sum
     val found = runs.sum.toDouble / runs.size

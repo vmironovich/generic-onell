@@ -7,19 +7,19 @@ import scala.annotation.tailrec
 import ru.ifmo.onell.Fitness
 import ru.ifmo.onell.util.{DenseIntSet, Helpers, OrderedSet}
 
-class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: Long)
+class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int,
+                        valueGenerator: RandomPlanted3SAT.ValueGenerator, randomSeed: Long)
   extends Fitness[Array[Boolean], Int, Int]
 {
-  private[this] val assignmentRNG = new Random(randomSeed)
+  private[this] val clauseRNG = new Random(randomSeed)
   private[this] val clauseVar = new Array[Int](clauseCount * 3)
   private[this] val clauseVal = new Array[Boolean](clauseCount * 3)
   private[this] val clausesOfVariableOffset = new Array[Int](problemSize + 1)
   private[this] val clausesOfVariableContent = new Array[Int](clauseCount * 3)
-
   private[this] val usedClauses = new DenseIntSet(clauseCount)
 
   // initialization
-  generateClauses(0, assignmentRNG)
+  generateClauses(0)
   makePartialSums(0)
   populateClausesOfVariableContent(0)
 
@@ -34,22 +34,18 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: 
   }
 
   @tailrec
-  private[this] def generateClauses(clauseIdx: Int, rng: Random): Unit = if (clauseIdx < clauseCount) {
+  private[this] def generateClauses(clauseIdx: Int): Unit = if (clauseIdx < clauseCount) {
     val offset = 3 * clauseIdx
-    clauseVar(offset) = rng.nextInt(problemSize)
-    clauseVar(offset + 1) = rng.nextInt(problemSize)
-    clauseVar(offset + 2) = rng.nextInt(problemSize)
-    clauseVal(offset) = rng.nextBoolean()
-    clauseVal(offset + 1) = rng.nextBoolean()
-    clauseVal(offset + 2) = rng.nextBoolean()
-    if (clauseVal(offset) || clauseVal(offset + 1) || clauseVal(offset + 2)) {
-      clausesOfVariableOffset(clauseVar(offset)) += 1
-      clausesOfVariableOffset(clauseVar(offset + 1)) += 1
-      clausesOfVariableOffset(clauseVar(offset + 2)) += 1
-      generateClauses(clauseIdx + 1, rng)
-    } else {
-      generateClauses(clauseIdx, rng)
-    }
+    val i0, i1, i2 = clauseRNG.nextInt(problemSize)
+    clauseVar(offset) = i0
+    clauseVar(offset + 1) = i1
+    clauseVar(offset + 2) = i2
+    valueGenerator.generateThree(clauseVal, offset, clauseRNG)
+    assert(clauseVal(offset) || clauseVal(offset + 1) || clauseVal(offset + 2))
+    clausesOfVariableOffset(i0) += 1
+    clausesOfVariableOffset(i1) += 1
+    clausesOfVariableOffset(i2) += 1
+    generateClauses(clauseIdx + 1)
   }
 
   @tailrec
@@ -105,5 +101,43 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: 
       i -= 1
     }
     f
+  }
+}
+
+object RandomPlanted3SAT {
+  trait ValueGenerator {
+    def generateThree(targetArray: Array[Boolean], offset: Int, rng: Random): Unit
+  }
+
+  object EasyGenerator extends ValueGenerator {
+    @scala.annotation.tailrec
+    override def generateThree(targetArray: Array[Boolean], offset: Int, rng: Random): Unit = {
+      val v0, v1, v2 = rng.nextBoolean()
+      if (v0 || v1 || v2) {
+        targetArray(offset) = v0
+        targetArray(offset + 1) = v1
+        targetArray(offset + 2) = v2
+      } else {
+        generateThree(targetArray, offset, rng)
+      }
+    }
+  }
+
+  object HardGenerator extends ValueGenerator {
+    override def generateThree(targetArray: Array[Boolean], offset: Int, rng: Random): Unit = {
+      rng.nextInt(6) match {
+        case 0 =>
+          targetArray(offset) = true
+          targetArray(offset + 1) = true
+          targetArray(offset + 2) = true
+        case 1 =>
+          targetArray(offset) = true
+          targetArray(offset + 1) = true
+          targetArray(offset + 2) = true
+          targetArray(offset + rng.nextInt(3)) = false
+        case _ =>
+          targetArray(offset + rng.nextInt(3)) = true
+      }
+    }
   }
 }

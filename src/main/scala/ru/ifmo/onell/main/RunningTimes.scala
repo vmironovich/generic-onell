@@ -159,7 +159,8 @@ object RunningTimes extends Main.Module {
     context.run { (scheduler, n) =>
       for ((name, alg) <- algorithms) {
         scheduler addTask {
-          val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt, seeder.nextLong()))
+          val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt,
+                                                        RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
           s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }

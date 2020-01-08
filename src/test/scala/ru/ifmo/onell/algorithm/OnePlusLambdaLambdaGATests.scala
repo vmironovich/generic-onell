@@ -39,7 +39,7 @@ class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
 
   it should "perform as expected on RandomPlanted3SAT with log capping" in {
     val size = 200
-    val om = new RandomPlanted3SAT(size, (4 * size * math.log(size)).toInt, 3454353454545L)
+    val om = new RandomPlanted3SAT(size, size * 20, RandomPlanted3SAT.EasyGenerator, 3454353454545L)
     val ll = new OnePlusLambdaLambdaGA(OnePlusLambdaLambdaGA.logCappedOneFifthLambda)
     val runs = IndexedSeq.fill(100)(ll.optimize(om))
     val found = runs.sum.toDouble / runs.size
