@@ -71,8 +71,8 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: 
 
   override def compare(lhs: Int, rhs: Int): Int = Integer.compare(lhs, rhs)
   override def isOptimalFitness(fitness: Int): Boolean = fitness == clauseCount
-  override def numberOfChangesForProblemSize(problemSize: Int): Int = problemSize
-  override def sizeTypeToLong(st: Int): Long = st
+  override def numberOfChanges: Int = problemSize
+  override def changeIndexTypeToLong(st: Int): Long = st
 
   override def evaluate(individual: Array[Boolean]): Int = {
     (0 until clauseCount).count(i => isClauseSatisfied(i, individual))

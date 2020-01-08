@@ -24,8 +24,8 @@ class LinearRandomDoubleWeights(val problemSize: Int, val maxWeight: Double, ran
 
   override def compare(lhs: Double, rhs: Double): Int = java.lang.Double.compare(lhs, rhs)
   override def isOptimalFitness(fitness: Double): Boolean = fitness > weightSum - 1e-1
-  override def numberOfChangesForProblemSize(problemSize: Int): Int = problemSize
-  override def sizeTypeToLong(st: Int): Long = st
+  override def numberOfChanges: Int = problemSize
+  override def changeIndexTypeToLong(st: Int): Long = st
 
   override def applyDelta(ind: Array[Boolean], delta: OrderedSet[Int], currentFitness: Double): Double = {
     val size = delta.size

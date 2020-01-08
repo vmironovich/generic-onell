@@ -19,8 +19,8 @@ object HammingDistance {
   {
     // Direct delegates
     override def problemSize: Int = problem.problemSize
-    override def numberOfChangesForProblemSize(problemSize: Int): Int = problem.numberOfChangesForProblemSize(problemSize)
-    override def sizeTypeToLong(st: Int): Long = problem.sizeTypeToLong(st)
+    override def numberOfChanges: Int = problem.numberOfChanges
+    override def changeIndexTypeToLong(st: Int): Long = problem.changeIndexTypeToLong(st)
     override def unapplyDelta(ind: Array[Boolean], delta: OrderedSet[Int]): Unit = problem.unapplyDelta(ind, delta)
 
     // Less direct delegates

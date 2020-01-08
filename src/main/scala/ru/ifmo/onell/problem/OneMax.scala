@@ -9,8 +9,8 @@ class OneMax(val problemSize: Int)
   override def evaluate(individual: Array[Boolean]): Int = Helpers.countTrueBits(individual)
   override def compare(lhs: Int, rhs: Int): Int = lhs - rhs
   override def isOptimalFitness(fitness: Int): Boolean = fitness == problemSize
-  override def numberOfChangesForProblemSize(problemSize: Int): Int = problemSize
-  override def sizeTypeToLong(st: Int): Long = st
+  override def numberOfChanges: Int = problemSize
+  override def changeIndexTypeToLong(st: Int): Long = st
 
   override def applyDelta(ind: Array[Boolean], delta: OrderedSet[Int], currentFitness: Int): Int = {
     val size = delta.size

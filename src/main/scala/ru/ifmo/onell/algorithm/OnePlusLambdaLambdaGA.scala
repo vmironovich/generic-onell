@@ -24,8 +24,8 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
     (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I]): Long =
   {
     val problemSize = fitness.problemSize
-    val nChanges = fitness.numberOfChangesForProblemSize(problemSize)
-    val lambdaP = lambdaTuning(fitness.sizeTypeToLong(nChanges))
+    val nChanges = fitness.numberOfChanges
+    val lambdaP = lambdaTuning(fitness.changeIndexTypeToLong(nChanges))
     val rng = Random.current()
     val individual = indOps.createStorage(problemSize)
     val mutation, mutationBest, crossover, crossoverBest = deltaOps.createStorage(nChanges)

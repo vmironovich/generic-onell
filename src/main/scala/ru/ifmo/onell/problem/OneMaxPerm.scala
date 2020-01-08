@@ -8,8 +8,8 @@ class OneMaxPerm(val problemSize: Int)
 {
   override def compare(lhs: Int, rhs: Int): Int = lhs - rhs
   override def isOptimalFitness(fitness: Int): Boolean = fitness == problemSize
-  override def numberOfChangesForProblemSize(problemSize: Int): Long = problemSize * (problemSize - 1L) / 2
-  override def sizeTypeToLong(st: Long): Long = st
+  override def numberOfChanges: Long = problemSize * (problemSize - 1L) / 2
+  override def changeIndexTypeToLong(st: Long): Long = st
 
   override def evaluate(individual: Permutation): Int = {
     var i, rv = 0

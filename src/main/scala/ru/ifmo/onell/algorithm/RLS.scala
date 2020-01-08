@@ -18,7 +18,7 @@ object RLS extends Optimizer {
     (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I]): Long =
   {
     val problemSize = fitness.problemSize
-    val nChanges = fitness.numberOfChangesForProblemSize(problemSize)
+    val nChanges = fitness.numberOfChanges
     val individual = indOps.createStorage(problemSize)
     val delta = deltaOps.createStorage(nChanges)
     val rng = Random.current()

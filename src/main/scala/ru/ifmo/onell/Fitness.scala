@@ -42,18 +42,17 @@ trait Fitness[IndividualType, @specialized(fs) FitnessType, @specialized(cs) Cha
   def isOptimalFitness(fitness: FitnessType): Boolean
 
   /**
-    * Returns the number of possible changes, given the problem size.
-    * @param problemSize the problem size.
+    * Returns the number of possible changes.
     * @return the number of possible changes.
     */
-  def numberOfChangesForProblemSize(problemSize: Int): ChangeIndexType
+  def numberOfChanges: ChangeIndexType
 
   /**
     * Convert the change size type to long.
     * @param st the value of the change size type.
     * @return its long value.
     */
-  def sizeTypeToLong(st: ChangeIndexType): Long
+  def changeIndexTypeToLong(st: ChangeIndexType): Long
 
   /**
     * Applies the given delta to the given individual, while simultaneously recomputing the fitness.
