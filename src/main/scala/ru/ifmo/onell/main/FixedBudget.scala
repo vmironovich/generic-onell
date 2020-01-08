@@ -1,14 +1,14 @@
 package ru.ifmo.onell.main
 
-import java.util.{Locale, Random}
 import java.util.concurrent.ThreadLocalRandom
+import java.util.{Locale, Random}
 
-import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
+import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA}
 import ru.ifmo.onell.problem.RandomPlanted3SAT
 import ru.ifmo.onell.problem.RandomPlanted3SAT._
-import ru.ifmo.onell.{Fitness, IterationLogger, Main, Optimizer}
 import ru.ifmo.onell.util.Specialization.{fitnessSpecialization => fsp}
+import ru.ifmo.onell.{Fitness, IterationLogger, Main, Optimizer}
 
 object FixedBudget extends Main.Module {
   override def name: String = "fixed-budget"
@@ -61,20 +61,23 @@ object FixedBudget extends Main.Module {
     }
   }
 
+  private val optimizers: IndexedSeq[(String, TerminationConditionTracker[Int] => Optimizer)] = IndexedSeq(
+    ("(1+1) EA aware", _ => OnePlusOneEA.PracticeAware),
+    ("(1+1) EA unaware", _ => OnePlusOneEA.PracticeUnaware),
+    ("uncapped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda), bePracticeAware = false)),
+    ("uncapped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda), bePracticeAware = true)),
+    ("capped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda), bePracticeAware = false)),
+    ("capped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda), bePracticeAware = true)),
+  )
+
   private def runHardSat(problemSizes: Seq[Int]): Unit = {
+    def nClausesFun(problemSize: Int) = (problemSize * 4.27).toInt
+
     val nInstances = 200
     val instanceSeeds = problemSizes.map(s => {
       val rng = new Random(s)
       IndexedSeq.fill(nInstances)(rng.nextLong())
     })
-    def nClausesFun(problemSize: Int) = (problemSize * 4.27).toInt
-
-    val optimizers: IndexedSeq[(String, TerminationConditionTracker[Int] => Optimizer)] = IndexedSeq(
-      ("uncapped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda), bePracticeAware = false)),
-      ("uncapped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda), bePracticeAware = true)),
-      ("capped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda), bePracticeAware = false)),
-      ("capped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda), bePracticeAware = true)),
-    )
 
     for ((name, optimizer) <- optimizers) {
       print("\\addplot+ [error bars/.cd, y dir=both, y explicit] coordinates {")
