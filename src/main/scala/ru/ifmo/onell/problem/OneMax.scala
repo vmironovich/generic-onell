@@ -6,6 +6,7 @@ import ru.ifmo.onell.util.{Helpers, OrderedSet}
 class OneMax(val problemSize: Int)
   extends Fitness[Array[Boolean], Int, Int]
 {
+  override def worstFitness: Int = -1
   override def evaluate(individual: Array[Boolean]): Int = Helpers.countTrueBits(individual)
   override def compare(lhs: Int, rhs: Int): Int = lhs - rhs
   override def isOptimalFitness(fitness: Int): Boolean = fitness == problemSize

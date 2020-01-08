@@ -24,6 +24,7 @@ class LinearRandomIntegerWeights(val problemSize: Int, val maxWeight: Int, rando
     fitness
   }
 
+  override def worstFitness: Long = -1
   override def compare(lhs: Long, rhs: Long): Int = java.lang.Long.compare(lhs, rhs)
   override def isOptimalFitness(fitness: Long): Boolean = fitness == weightSum
   override def numberOfChanges: Int = problemSize

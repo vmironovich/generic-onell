@@ -63,6 +63,7 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int,
     populateClausesOfVariableContent(i + 1)
   }
 
+  override def worstFitness: Int = -1
   override def compare(lhs: Int, rhs: Int): Int = Integer.compare(lhs, rhs)
   override def isOptimalFitness(fitness: Int): Boolean = fitness == clauseCount
   override def numberOfChanges: Int = problemSize

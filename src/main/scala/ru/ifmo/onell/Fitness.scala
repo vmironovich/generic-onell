@@ -29,6 +29,23 @@ trait Fitness[IndividualType, @specialized(fs) FitnessType, @specialized(cs) Cha
   def compare(lhs: FitnessType, rhs: FitnessType): Int
 
   /**
+    * Returns the maximum of the two fitness values.
+    * @param lhs the left-hand-side fitness.
+    * @param rhs the right-hand-side fitness.
+    * @return the maximum of the two fitness values.
+    */
+  final def max(lhs: FitnessType, rhs: FitnessType): FitnessType = if (compare(lhs, rhs) < 0) rhs else lhs
+
+  /**
+    * Returns the worst value of the fitness, which is suitable to e.g. initialize best seen fitness.
+    * This method is allowed to return an illegal fitness value, e.g. -1 for OneMax,
+    * which would still compare perfectly fine with all other fitness values.
+    *
+    * @return the worst value of the fitness.
+    */
+  def worstFitness: FitnessType
+
+  /**
     * Returns the problem size.
     * @return the problem size.
     */

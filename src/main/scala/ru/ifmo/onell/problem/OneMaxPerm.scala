@@ -6,6 +6,7 @@ import ru.ifmo.onell.util.{OrderedSet, Permutation}
 class OneMaxPerm(val problemSize: Int)
   extends Fitness[Permutation, Int, Long]
 {
+  override def worstFitness: Int = -1
   override def compare(lhs: Int, rhs: Int): Int = lhs - rhs
   override def isOptimalFitness(fitness: Int): Boolean = fitness == problemSize
   override def numberOfChanges: Long = problemSize * (problemSize - 1L) / 2

@@ -18,6 +18,7 @@ object HammingDistance {
     extends Fitness[Array[Boolean], FAHD[F], Int]
   {
     // Direct delegates
+    override def worstFitness: FAHD[F] = new FAHD[F](problem.worstFitness, problem.problemSize + 1)
     override def problemSize: Int = problem.problemSize
     override def numberOfChanges: Int = problem.numberOfChanges
     override def changeIndexTypeToLong(st: Int): Long = problem.changeIndexTypeToLong(st)
