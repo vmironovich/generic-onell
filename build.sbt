@@ -1,12 +1,13 @@
 lazy val commonSettings = Seq(
   organization := "ru.ifmo",
-  libraryDependencies += scalaTest,
+  libraryDependencies ++= Seq(ojSolver, scalaTest),
   scalaVersion := "2.13.1",
   scalacOptions ++= Seq("-deprecation"),
   fork := true
 )
 
 lazy val scalaTest  = "org.scalatest" %% "scalatest" % "3.1.0" % Test
+lazy val ojSolver   = "org.ojalgo" % "ojalgo" % "48.0.0"
 
 lazy val root = project
   .in(file("."))

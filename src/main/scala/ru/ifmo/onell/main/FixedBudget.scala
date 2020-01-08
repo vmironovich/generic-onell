@@ -5,10 +5,10 @@ import java.util.{Locale, Random}
 
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA}
-import ru.ifmo.onell.problem.RandomPlanted3SAT
+import ru.ifmo.onell.problem.{MultiDimensionalKnapsack, RandomPlanted3SAT}
 import ru.ifmo.onell.problem.RandomPlanted3SAT._
 import ru.ifmo.onell.util.Specialization.{fitnessSpecialization => fsp}
-import ru.ifmo.onell.{Fitness, IterationLogger, Main, Optimizer}
+import ru.ifmo.onell.{Fitness, HasIndividualOperations, IterationLogger, Main, Optimizer}
 
 object FixedBudget extends Main.Module {
   override def name: String = "fixed-budget"
@@ -16,15 +16,17 @@ object FixedBudget extends Main.Module {
   override def longDescription: Seq[String] = Seq(
     "Runs experiments on expected fitness values given the budget.",
     "The current implementation runs only the (1+(λ,λ)) GA with different tuning approaches for λ",
-    "on hard MAX-SAT instances.",
+    "on hard MAX-SAT instances and the multidimensional knapsack problem.",
     "Parameters:",
     "  - sat: run the experiment on hard MAX-SAT instances",
+    "  - mkp: run the experiment on the multidimensional knapsack problem"
   )
 
   override def moduleMain(args: Array[String]): Unit = {
     Locale.setDefault(Locale.US)
     args(0) match {
-      case "sat" => runHardSat((4 to 29).map(v => v * v))
+      case "sat" => runHardSat((4 to 28).map(v => v * v))
+      case "mkp" => runMultiDimensionalKnapsack()
       case _ => throw new IllegalArgumentException(s"Unknown command for $name: ${args(0)}")
     }
   }
@@ -111,5 +113,43 @@ object FixedBudget extends Main.Module {
     }
 
     runImpl(10000, 0)
+  }
+
+  private def runKnapsack(optimizer: TerminationConditionTracker[Int] => Optimizer, ff: MultiDimensionalKnapsack): Int = {
+    //noinspection NoTailRecursionAnnotation: this one cannot really be tailrec
+    def runImpl(budgetRemains: Long, maxSoFar: Int): Int = {
+      val tracker = new TerminationConditionTracker[Int](ff, budgetRemains)
+      try {
+        implicit val individualOps: HasIndividualOperations[MultiDimensionalKnapsack.Individual] = ff
+        optimizer(tracker).optimize(ff, tracker)
+        throw new AssertionError("Cannot reach here for this problem")
+      } catch {
+        case BudgetReached(fitness: Int) => ff.max(maxSoFar, fitness)
+        case RestartConditionReached(fitness: Int, evs) => runImpl(budgetRemains - evs, ff.max(maxSoFar, fitness))
+      }
+    }
+
+    runImpl(10000, 0)
+  }
+
+  private def getDescriptor(kp: MultiDimensionalKnapsack): (Double, Int, Int) =
+    (kp.tightnessRatio, kp.problemSize, kp.nConstraints)
+
+  private def runMultiDimensionalKnapsack(): Unit = {
+    println("% Finding linear relaxations. This should be instant, but unfortunately not. Please wait...")
+    val knapsacksAndSolutions = MultiDimensionalKnapsack.ChuBeaselyProblems.map(k => (k, k.linearRelaxation))
+    for ((name, optGen) <- optimizers) {
+      print("\\addplot+ coordinates {")
+      for ((desc, subset) <- knapsacksAndSolutions.groupBy(k => getDescriptor(k._1))) {
+        val runsForEach = 10
+        val results = subset map {
+          case (p, l) => IndexedSeq.fill(runsForEach)(runKnapsack(optGen, p)).sum / l
+        }
+        val average = results.sum / runsForEach / subset.size
+        print(s"({$desc},$average)")
+      }
+      println("};")
+      println(s"\\addlegendentry{$name};")
+    }
   }
 }

@@ -6,6 +6,8 @@ import java.util.zip.GZIPInputStream
 
 import scala.util.Using
 
+import org.ojalgo.optimisation.{Expression, ExpressionsBasedModel, Variable}
+
 import ru.ifmo.onell.{Fitness, HasIndividualOperations}
 import ru.ifmo.onell.util.OrderedSet
 import MultiDimensionalKnapsack._
@@ -20,6 +22,29 @@ class MultiDimensionalKnapsack(bitDefinitions: Array[BitDefinition], weightLimit
     val sumWeights = bitDefinitions.view.map(_.weight(0)).sum
     val ratio = weightLimits(0).toDouble / sumWeights
     (ratio * 4 + 0.5).toInt / 4.0
+  }
+
+  def linearRelaxation: Double = {
+    @scala.annotation.tailrec
+    def collectExpression(weightIndex: Int, varIndex: Int, variables: Seq[Variable], expr: Expression): Expression = {
+      if (varIndex < bitDefinitions.length) {
+        collectExpression(weightIndex, varIndex + 1, variables,
+                          expr.set(variables(varIndex), bitDefinitions(varIndex).weight(weightIndex)))
+      } else expr
+    }
+
+    val model = new ExpressionsBasedModel()
+    model.options.sparse = false // otherwise it is too dumb and uses sparse matrices for large instances
+    val variables = bitDefinitions.indices.map(i => Variable.make(s"x$i").lower(0).upper(1).weight(bitDefinitions(i).cost))
+    variables.foreach(model.addVariable)
+    for (j <- weightLimits.indices) {
+      collectExpression(j, 0, variables, model.addExpression(s"knap$j")).upper(weightLimits(j))
+    }
+    val result = model.maximise()
+    model.validate(result)
+    val rv = result.getValue
+    model.dispose()
+    rv
   }
 
   // trivial methods
