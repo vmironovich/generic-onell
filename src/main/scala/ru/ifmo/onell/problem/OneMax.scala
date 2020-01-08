@@ -1,11 +1,10 @@
 package ru.ifmo.onell.problem
 
+import ru.ifmo.onell.Fitness
 import ru.ifmo.onell.util.{Helpers, OrderedSet}
-import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 
 class OneMax(val problemSize: Int)
-  extends HasEvaluation[Array[Boolean], Int]
-  with HasIncrementalEvaluation[Array[Boolean], Int, Int]
+  extends Fitness[Array[Boolean], Int, Int]
 {
   override def evaluate(individual: Array[Boolean]): Int = Helpers.countTrueBits(individual)
   override def compare(lhs: Int, rhs: Int): Int = lhs - rhs

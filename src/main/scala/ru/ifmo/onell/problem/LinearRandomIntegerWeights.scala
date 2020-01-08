@@ -2,12 +2,11 @@ package ru.ifmo.onell.problem
 
 import java.util.Random
 
+import ru.ifmo.onell.Fitness
 import ru.ifmo.onell.util.{Helpers, OrderedSet}
-import ru.ifmo.onell.{HasEvaluation, HasIncrementalEvaluation}
 
 class LinearRandomIntegerWeights(val problemSize: Int, val maxWeight: Int, randomSeed: Long)
-  extends HasEvaluation[Array[Boolean], Long]
-    with HasIncrementalEvaluation[Array[Boolean], Long, Int]
+  extends Fitness[Array[Boolean], Long, Int]
 {
   private[this] val rng = new Random(randomSeed)
   private[this] val weights = Array.fill(problemSize)(rng.nextInt(maxWeight) + 1)

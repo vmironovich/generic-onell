@@ -19,7 +19,7 @@ trait Optimizer {
     * @tparam C the type of change index of an individual.
     * @return the number of evaluations until an optimum is found.
     */
-  def optimize[I, @sp(fsp) F, @sp(csp) C](fitness: HasEvaluation[I, F] with HasIncrementalEvaluation[I, F, C],
+  def optimize[I, @sp(fsp) F, @sp(csp) C](fitness: Fitness[I, F, C],
                                           iterationLogger: IterationLogger[F] = IterationLogger.dummyLogger[F])
                                          (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I]): Long
 }
