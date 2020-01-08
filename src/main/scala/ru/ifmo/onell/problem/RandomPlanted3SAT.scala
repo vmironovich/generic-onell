@@ -1,7 +1,6 @@
 package ru.ifmo.onell.problem
 
 import java.util.Random
-import java.util.concurrent.ThreadLocalRandom
 
 import scala.annotation.tailrec
 
@@ -12,7 +11,6 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: 
   extends Fitness[Array[Boolean], Int, Int]
 {
   private[this] val assignmentRNG = new Random(randomSeed)
-  private[this] val assignment = Array.fill(problemSize)(assignmentRNG.nextBoolean())
   private[this] val clauseVar = new Array[Int](clauseCount * 3)
   private[this] val clauseVal = new Array[Boolean](clauseCount * 3)
   private[this] val clausesOfVariableOffset = new Array[Int](problemSize + 1)
@@ -21,7 +19,7 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: 
   private[this] val usedClauses = new DenseIntSet(clauseCount)
 
   // initialization
-  generateClauses(0, ThreadLocalRandom.current())
+  generateClauses(0, assignmentRNG)
   makePartialSums(0)
   populateClausesOfVariableContent(0)
 
@@ -36,7 +34,7 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: 
   }
 
   @tailrec
-  private[this] def generateClauses(clauseIdx: Int, rng: ThreadLocalRandom): Unit = if (clauseIdx < clauseCount) {
+  private[this] def generateClauses(clauseIdx: Int, rng: Random): Unit = if (clauseIdx < clauseCount) {
     val offset = 3 * clauseIdx
     clauseVar(offset) = rng.nextInt(problemSize)
     clauseVar(offset + 1) = rng.nextInt(problemSize)
@@ -44,7 +42,7 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int, randomSeed: 
     clauseVal(offset) = rng.nextBoolean()
     clauseVal(offset + 1) = rng.nextBoolean()
     clauseVal(offset + 2) = rng.nextBoolean()
-    if (isClauseSatisfied(clauseIdx, assignment)) {
+    if (clauseVal(offset) || clauseVal(offset + 1) || clauseVal(offset + 2)) {
       clausesOfVariableOffset(clauseVar(offset)) += 1
       clausesOfVariableOffset(clauseVar(offset + 1)) += 1
       clausesOfVariableOffset(clauseVar(offset + 2)) += 1
