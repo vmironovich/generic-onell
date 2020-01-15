@@ -2,10 +2,11 @@ package ru.ifmo.onell.main
 
 import java.io.PrintWriter
 import java.util.Random
+import java.util.concurrent.ThreadLocalRandom
 
 import scala.util.Using
 
-import ru.ifmo.onell.Main
+import ru.ifmo.onell.{IterationLogger, Main}
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
 import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
@@ -168,20 +169,34 @@ object RunningTimes extends Main.Module {
   }
 
   private def permOneMaxSimple(context: Context): Unit = {
-    val algorithms = Seq(
-      ("RLS", Int.MaxValue, RLS),
-      ("(1+1) EA", Int.MaxValue, OnePlusOneEA.PracticeAware),
-      ("(1+(λ,λ)) GA, λ=10", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLambda(10))),
-      ("(1+(λ,λ)) GA, λ=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLogLambda)),
-      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda)),
-      ("(1+(λ,λ)) GA, λ<=n", 256, new OnePlusLambdaLambdaGA(defaultOneFifthLambda)),
+    class LambdaLogger(n: Int) extends IterationLogger[Int] {
+      private[this] var lastDistance = n + 1
+      override def logIteration(evaluations: Long, fitness: Int): Unit = lastDistance = math.min(lastDistance, n - fitness)
+      def makeTuning(changes: Long): LambdaTuning = new LambdaTuning {
+        override def lambda(rng: ThreadLocalRandom): Double = math.max(2 * math.log(n + 1), math.sqrt(n.toDouble / lastDistance))
+        override def notifyChildIsBetter(): Unit = {}
+        override def notifyChildIsEqual(): Unit = {}
+        override def notifyChildIsWorse(): Unit = {}
+      }
+    }
+
+    val algorithms = Seq[(String, Int, OneMaxPerm => Long)](
+      ("RLS",                   Int.MaxValue, p => RLS.optimize(p)),
+      ("(1+1) EA",              Int.MaxValue, p => OnePlusOneEA.PracticeAware.optimize(p)),
+      ("(1+(λ,λ)) GA, λ=10",    Int.MaxValue, p => new OnePlusLambdaLambdaGA(fixedLambda(10)).optimize(p)),
+      ("(1+(λ,λ)) GA, λ=2ln n", Int.MaxValue, p => new OnePlusLambdaLambdaGA(fixedLogLambda).optimize(p)),
+      ("(1+(λ,λ)) GA, λ<=n",    256,          p => new OnePlusLambdaLambdaGA(defaultOneFifthLambda).optimize(p)),
+      ("(1+(λ,λ)) GA, λ~opt",   Int.MaxValue, p => {
+        val logger = new LambdaLogger(p.problemSize)
+        new OnePlusLambdaLambdaGA(logger.makeTuning).optimize(p, logger)
+      })
     )
 
     context.run { (scheduler, n) =>
       for ((name, maxN, alg) <- algorithms) {
         if (n <= maxN) {
           scheduler.addTask {
-            val time = alg.optimize(new OneMaxPerm(n))
+            val time = alg(new OneMaxPerm(n))
             s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n2":${time.toDouble / n / n}}"""
           }
         }
