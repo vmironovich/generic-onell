@@ -173,7 +173,13 @@ object RunningTimes extends Main.Module {
       private[this] var lastDistance = n + 1
       override def logIteration(evaluations: Long, fitness: Int): Unit = lastDistance = math.min(lastDistance, n - fitness)
       def makeTuning(changes: Long): LambdaTuning = new LambdaTuning {
-        override def lambda(rng: ThreadLocalRandom): Double = math.max(2 * math.log(n + 1), math.sqrt(n.toDouble / lastDistance))
+        override def lambda(rng: ThreadLocalRandom): Double = {
+          val tailUp = if (lastDistance <= n - lastDistance)
+            math.sqrt(n / 2.0 / lastDistance)
+          else
+            math.min(n / 2.0 / math.max(1, n - lastDistance), math.sqrt(n / 2.0))
+          math.max(2 * math.log(n + 1), tailUp)
+        }
         override def notifyChildIsBetter(): Unit = {}
         override def notifyChildIsEqual(): Unit = {}
         override def notifyChildIsWorse(): Unit = {}
