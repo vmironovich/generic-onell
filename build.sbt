@@ -7,7 +7,7 @@ lazy val commonSettings = Seq(
 )
 
 lazy val scalaTest  = "org.scalatest" %% "scalatest" % "3.1.0" % Test
-lazy val ojSolver   = "org.ojalgo" % "ojalgo" % "48.0.0"
+lazy val ojSolver   = "org.ojalgo" % "ojalgo" % "48.1.0"
 
 lazy val root = project
   .in(file("."))
