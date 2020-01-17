@@ -23,6 +23,7 @@ object RunningTimes extends Main.Module {
     "  bits:om:99      <context>: for OneMax starting at the distance of sqrt(n) from the end",
     "  bits:l2d        <context>: for linear functions with random weights from [1;2]",
     "  bits:sat        <context>: for the MAX-SAT problem with logarithmic density",
+    "  bits:sat:99     <context>: same but starting at the distance of sqrt(n) from the end",
     "  bits:om:tuning  <context>: for OneMax with various tuning choices for the (1+(λ,λ)) GA",
     "  bits:l2d:tuning <context>: same for linear functions with random weights from [1;2]",
     "The following commands run experiments for problems on permutations:",
@@ -36,11 +37,12 @@ object RunningTimes extends Main.Module {
   )
 
   override def moduleMain(args: Array[String]): Unit = args(0) match {
-    case "bits:om"    => bitsOneMaxSimple(parseContext(args))
-    case "bits:om:99" => bitsOneMaxAlmostOptimal(parseContext(args))
-    case "bits:l2d"   => bitsLinearDoubleSimple(parseContext(args))
-    case "bits:sat"   => bitsMaxSATSimple(parseContext(args))
-    case "perm:om"    => permOneMaxSimple(parseContext(args))
+    case "bits:om"     => bitsOneMaxSimple(parseContext(args))
+    case "bits:om:99"  => bitsOneMaxAlmostOptimal(parseContext(args))
+    case "bits:l2d"    => bitsLinearDoubleSimple(parseContext(args))
+    case "bits:sat"    => bitsMaxSATSimple(parseContext(args))
+    case "bits:sat:99" => bitsMaxSATAlmostOptimal(parseContext(args))
+    case "perm:om"     => permOneMaxSimple(parseContext(args))
     case "bits:om:tuning"  => bitsOneMaxTunings(parseContext(args))
     case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args))
   }
@@ -200,6 +202,45 @@ object RunningTimes extends Main.Module {
           val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt,
                                                         RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
           s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsMaxSATAlmostOptimal(context: Context): Unit = {
+    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = new HasIndividualOperations[Array[Boolean]] {
+      override def createStorage(problemSize: Int): Array[Boolean] = new Array(problemSize)
+      override def initializeRandomly(individual: Array[Boolean], rng: ThreadLocalRandom): Unit = {
+        val distance = math.sqrt(individual.length).toInt
+        var i = individual.length
+        while (i > 0) {
+          i -= 1
+          individual(i) = rng.nextInt(distance) != 0
+        }
+      }
+    }
+
+    val algorithms = Seq(
+      ("RLS", Int.MaxValue, RLS),
+      ("(1+1) EA", Int.MaxValue, OnePlusOneEA.PracticeAware),
+      ("(1+(λ,λ)) GA, λ<=n", 16384, new OnePlusLambdaLambdaGA(defaultOneFifthLambda)),
+      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda)),
+      ("(1+(λ,λ)) GA, λ~pow(2.1)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.1))),
+      ("(1+(λ,λ)) GA, λ~pow(2.3)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.3))),
+      ("(1+(λ,λ)) GA, λ~pow(2.5)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.5))),
+      ("(1+(λ,λ)) GA, λ~pow(2.7)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.7))),
+      ("(1+(λ,λ)) GA, λ~pow(2.9)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.9))),
+    )
+
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      for ((name, limit, alg) <- algorithms) {
+        if (n <= limit) {
+          scheduler addTask {
+            val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt,
+                                                          RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
+            s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          }
         }
       }
     }
