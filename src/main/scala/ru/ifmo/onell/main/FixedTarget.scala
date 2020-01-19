@@ -13,14 +13,19 @@ object FixedTarget extends Main.Module {
   override def longDescription: Seq[String] = Seq(
     "Runs experiments about fixed-target performance of the (1+1) EA on OneMax.",
     "The parameters are:",
-    "  --n    <int>: the problem size",
-    "  --step <int>: the step to use when reporting the results",
-    "  --runs <int>: over how many runs to average"
+    "  --n          <int>: the problem size",
+    "  --step       <int>: the target step to use when reporting the results",
+    "  --fine-start <int>: the target to use to report the very few last targets",
+    "  --fine-step  <int>: the fine target step to use in this case",
+    "  --runs       <int>: over how many runs to average",
+    "  --zero      <bool>: whether to start at zero when doing the experiments and computing the bounds",
   )
 
   override def moduleMain(args: Array[String]): Unit = {
     val n = args.getOption("--n").toInt
-    val step = args.getOption("--step").toDouble
+    val step = args.getOption("--step").toInt
+    val fineStart = args.getOption("--fine-start").toInt
+    val fineStep = args.getOption("--fine-step").toInt
     val runs = args.getOption("--runs").toInt
     val fromZero = args.getOption("--zero").toBoolean
 
@@ -35,39 +40,30 @@ object FixedTarget extends Main.Module {
       harmonic(i) = harmonic(i - 1) + 1.0 / i
     }
 
-    val stepperBuilder = IndexedSeq.newBuilder[Int]
-    var i = n
-    var lastPos = Double.MinValue
-    while (i >= 0) {
-      val currPos = math.log(n - i + 1) / math.log(n + 1)
-      if (currPos > lastPos + step) {
-        lastPos = currPos
-        stepperBuilder += i
+    for (stepper <- Seq(0 to n by step, fineStart to n by fineStep)) {
+      print("\\addplot+ coordinates {")
+      val halfHarmonic = if (n % 2 == 0) harmonic(n / 2) else (harmonic(n / 2) + harmonic(n - n / 2)) / 2
+      for (i <- stepper) {
+        val upper = math.max(1, math.E * n * ((if (fromZero) harmonic(n) else halfHarmonic) - harmonic(n - i)))
+        print(s"(${i.toDouble / n},$upper)")
       }
-      i -= 1
+      println("};")
+      println("\\addlegendentry{Upper bound~\\cite{practice-aware}};")
+      print("\\addplot+ plot[error bars/.cd, y dir=both, y explicit] coordinates {")
+      for (i <- stepper) {
+        print(collector.get(i, runs))
+      }
+      println("};")
+      println("\\addlegendentry{$(1+1)$ EA};")
+      print("\\addplot+ coordinates {")
+      for (i <- stepper) {
+        val bound = math.max(1, math.E * n * math.log(n.toDouble / (n - i + 1)) - 2 * n * math.log(math.log(n)) - 16 * n)
+        print(s"(${i.toDouble / n},$bound)")
+      }
+      println("};")
+      println("\\addlegendentry{Lower bound~\\cite{lengler-fixed-budget}};")
+      println()
     }
-    val stepper = stepperBuilder.result().reverse
-
-    print("\\addplot+ coordinates {")
-    val halfHarmonic = if (n % 2 == 0) harmonic(n / 2) else (harmonic(n / 2) + harmonic(n - n / 2)) / 2
-    for (i <- stepper) {
-      val upper = math.max(1, math.E * n * ((if (fromZero) harmonic(n) else halfHarmonic) - harmonic(n - i)))
-      print(s"($i,$upper)")
-    }
-    println("};")
-    println("\\addlegendentry{Upper bound~\\cite{practice-aware}};")
-    print("\\addplot+ plot[error bars/.cd, y dir=both, y explicit] coordinates {")
-    for (i <- stepper) {
-      print(collector.get(i, runs))
-    }
-    println("};")
-    println("\\addlegendentry{$(1+1)$ EA};")
-    print("\\addplot+ coordinates {")
-    for (i <- stepper) {
-      print(s"($i,${math.max(1, math.E * n * math.log(n.toDouble / (n - i + 1)) - 2 * n * math.log(math.log(n)) - 16 * n)})")
-    }
-    println("};")
-    println("\\addlegendentry{Lower bound~\\cite{lengler-fixed-budget}};")
   }
 
   private class FixedTargetLogger(problemSize: Int) extends IterationLogger[Int] {
@@ -78,7 +74,7 @@ object FixedTarget extends Main.Module {
     def get(index: Int, runs: Int): String = {
       val avg = collector(index).toDouble / runs
       val std = math.sqrt((collectorSq(index) / runs - avg * avg) * runs / (runs - 1))
-      s"($index,$avg)+-(0,$std)"
+      s"(${index.toDouble / problemSize},$avg)+-(0,$std)"
     }
 
     override def logIteration(evaluations: Long, fitness: Int): Unit = {
