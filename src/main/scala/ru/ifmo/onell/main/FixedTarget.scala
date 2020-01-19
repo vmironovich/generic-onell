@@ -3,7 +3,6 @@ package ru.ifmo.onell.main
 import java.util.concurrent.ThreadLocalRandom
 
 import ru.ifmo.onell.algorithm.OnePlusOneEA
-import ru.ifmo.onell.individual.BitStringOps
 import ru.ifmo.onell.problem.OneMax
 import ru.ifmo.onell.{HasIndividualOperations, IterationLogger, Main}
 
@@ -17,8 +16,7 @@ object FixedTarget extends Main.Module {
     "  --step       <int>: the target step to use when reporting the results",
     "  --fine-start <int>: the target to use to report the very few last targets",
     "  --fine-step  <int>: the fine target step to use in this case",
-    "  --runs       <int>: over how many runs to average",
-    "  --zero      <bool>: whether to start at zero when doing the experiments and computing the bounds",
+    "  --runs       <int>: over how many runs to average over",
   )
 
   override def moduleMain(args: Array[String]): Unit = {
@@ -27,34 +25,56 @@ object FixedTarget extends Main.Module {
     val fineStart = args.getOption("--fine-start").toInt
     val fineStep = args.getOption("--fine-step").toInt
     val runs = args.getOption("--runs").toInt
-    val fromZero = args.getOption("--zero").toBoolean
 
-    implicit val individualOps: HasIndividualOperations[Array[Boolean]] = if (fromZero) ZeroBooleanOps else BitStringOps
-
-    val collector = new FixedTargetLogger(n)
+    val collectorZero, collectorMean = new FixedTargetLogger(n)
     val oneMax = new OneMax(n)
-    (0 until runs).foreach(_ => OnePlusOneEA.PracticeUnaware.optimize(oneMax, collector))
+
+    locally {
+      implicit val individualOps: HasIndividualOperations[Array[Boolean]] = ZeroBooleanOps
+      (0 until runs).foreach(_ => OnePlusOneEA.PracticeUnaware.optimize(oneMax, collectorZero))
+    }
+    locally {
+      (0 until runs).foreach(_ => OnePlusOneEA.PracticeUnaware.optimize(oneMax, collectorMean))
+    }
 
     val harmonic = new Array[Double](n + 1)
     for (i <- 1 to n) {
       harmonic(i) = harmonic(i - 1) + 1.0 / i
     }
+    val secondBoundStart = n / 2.0 + math.sqrt(n) * math.log(n)
 
     for (stepper <- Seq(0 to n by step, fineStart to n by fineStep)) {
       print("\\addplot+ coordinates {")
-      val halfHarmonic = if (n % 2 == 0) harmonic(n / 2) else (harmonic(n / 2) + harmonic(n - n / 2)) / 2
       for (i <- stepper) {
-        val upper = math.max(1, math.E * n * ((if (fromZero) harmonic(n) else halfHarmonic) - harmonic(n - i)))
+        val upper = math.max(1, math.E * n * (harmonic(n) - harmonic(n - i)))
         print(s"(${i.toDouble / n},$upper)")
       }
       println("};")
       println("\\addlegendentry{Upper bound~\\cite{practice-aware}};")
+
       print("\\addplot+ plot[error bars/.cd, y dir=both, y explicit] coordinates {")
       for (i <- stepper) {
-        print(collector.get(i, runs))
+        print(collectorZero.get(i, runs))
       }
       println("};")
-      println("\\addlegendentry{$(1+1)$ EA};")
+      println("\\addlegendentry{$(1+1)$ EA from zero};")
+
+      print("\\addplot+ coordinates {")
+      val halfHarmonic = if (n % 2 == 0) harmonic(n / 2) else (harmonic(n / 2) + harmonic(n - n / 2)) / 2
+      for (i <- stepper if i > secondBoundStart) {
+        val upper = math.max(1, math.E * n * (halfHarmonic - harmonic(n - i)))
+        print(s"(${i.toDouble / n},$upper)")
+      }
+      println("};")
+      println("\\addlegendentry{Upper bound~\\cite{fixed-target-gecco19}};")
+
+      print("\\addplot+ plot[error bars/.cd, y dir=both, y explicit] coordinates {")
+      for (i <- stepper) {
+        print(collectorMean.get(i, runs))
+      }
+      println("};")
+      println("\\addlegendentry{$(1+1)$ EA from mean};")
+
       print("\\addplot+ coordinates {")
       for (i <- stepper) {
         val bound = math.max(1, math.E * n * math.log(n.toDouble / (n - i + 1)) - 2 * n * math.log(math.log(n)) - 16 * n)
