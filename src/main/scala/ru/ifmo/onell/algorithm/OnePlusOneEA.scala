@@ -58,7 +58,7 @@ class OnePlusOneEA(bePracticeAware: Boolean) extends Optimizer {
     }
 
     indOps.initializeRandomly(individual, rng)
-    val firstFitness =fitness.evaluate(individual)
+    val firstFitness = fitness.evaluate(individual)
     iterationLogger.logIteration(1, firstFitness)
     iterate(firstFitness, 1)
   }
