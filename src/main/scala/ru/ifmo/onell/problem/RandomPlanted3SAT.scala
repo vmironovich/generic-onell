@@ -11,7 +11,6 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int,
                         valueGenerator: RandomPlanted3SAT.ValueGenerator, randomSeed: Long)
   extends Fitness[Array[Boolean], Int, Int]
 {
-  private[this] val clauseRNG = new Random(randomSeed)
   private[this] val clauseVar = new Array[Int](clauseCount * 3)
   private[this] val clauseVal = new Array[Boolean](clauseCount * 3)
   private[this] val clausesOfVariableOffset = new Array[Int](problemSize + 1)
@@ -19,7 +18,7 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int,
   private[this] val usedClauses = new DenseIntSet(clauseCount)
 
   // initialization
-  generateClauses(0)
+  generateClauses(0, new Random(randomSeed))
   makePartialSums(0)
   populateClausesOfVariableContent(0)
 
@@ -34,18 +33,18 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int,
   }
 
   @tailrec
-  private[this] def generateClauses(clauseIdx: Int): Unit = if (clauseIdx < clauseCount) {
+  private[this] def generateClauses(clauseIdx: Int, rng: Random): Unit = if (clauseIdx < clauseCount) {
     val offset = 3 * clauseIdx
-    val i0, i1, i2 = clauseRNG.nextInt(problemSize)
+    val i0, i1, i2 = rng.nextInt(problemSize)
     clauseVar(offset) = i0
     clauseVar(offset + 1) = i1
     clauseVar(offset + 2) = i2
-    valueGenerator.generateThree(clauseVal, offset, clauseRNG)
+    valueGenerator.generateThree(clauseVal, offset, rng)
     assert(clauseVal(offset) || clauseVal(offset + 1) || clauseVal(offset + 2))
     clausesOfVariableOffset(i0) += 1
     clausesOfVariableOffset(i1) += 1
     clausesOfVariableOffset(i2) += 1
-    generateClauses(clauseIdx + 1)
+    generateClauses(clauseIdx + 1, rng)
   }
 
   @tailrec
@@ -87,16 +86,16 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int,
       }
       i += 1
     }
-    val satBefore = countSatisfiedClauses(usedClauses, ind)
+    val satBefore = countSatisfiedClauses(ind)
     Helpers.flipEachBit(ind, delta)
-    currentFitness - satBefore + countSatisfiedClauses(usedClauses, ind)
+    currentFitness - satBefore + countSatisfiedClauses(ind)
   }
 
   override def unapplyDelta(ind: Array[Boolean], delta: OrderedSet[Int]): Unit = Helpers.flipEachBit(ind, delta)
 
-  private def countSatisfiedClauses(clauseIndices: OrderedSet[Int], individual: Array[Boolean]): Int = {
+  private def countSatisfiedClauses(individual: Array[Boolean]): Int = {
     var f = 0
-    var i = clauseIndices.size - 1
+    var i = usedClauses.size - 1
     while (i >= 0) {
       f += (if (isClauseSatisfied(usedClauses(i), individual)) 1 else 0)
       i -= 1
