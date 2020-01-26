@@ -2,10 +2,11 @@ package ru.ifmo.onell.main
 
 import java.io.PrintWriter
 import java.util.Random
+import java.util.concurrent.ThreadLocalRandom
 
 import scala.util.Using
 
-import ru.ifmo.onell.Main
+import ru.ifmo.onell.{HasIndividualOperations, Main}
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
 import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
@@ -19,8 +20,10 @@ object RunningTimes extends Main.Module {
   override def longDescription: Seq[String] = Seq(
     "The following commands run experiments for problems on bit strings:",
     "  bits:om         <context>: for OneMax",
+    "  bits:om:99      <context>: for OneMax starting at the distance of sqrt(n) from the end",
     "  bits:l2d        <context>: for linear functions with random weights from [1;2]",
     "  bits:sat        <context>: for the MAX-SAT problem with logarithmic density",
+    "  bits:sat:99     <context>: same but starting at the distance of sqrt(n) from the end",
     "  bits:om:tuning  <context>: for OneMax with various tuning choices for the (1+(λ,λ)) GA",
     "  bits:l2d:tuning <context>: same for linear functions with random weights from [1;2]",
     "The following commands run experiments for problems on permutations:",
@@ -34,10 +37,12 @@ object RunningTimes extends Main.Module {
   )
 
   override def moduleMain(args: Array[String]): Unit = args(0) match {
-    case "bits:om"  => bitsOneMaxSimple(parseContext(args))
-    case "bits:l2d" => bitsLinearDoubleSimple(parseContext(args))
-    case "bits:sat" => bitsMaxSATSimple(parseContext(args))
-    case "perm:om"  => permOneMaxSimple(parseContext(args))
+    case "bits:om"     => bitsOneMaxSimple(parseContext(args))
+    case "bits:om:99"  => bitsOneMaxAlmostOptimal(parseContext(args))
+    case "bits:l2d"    => bitsLinearDoubleSimple(parseContext(args))
+    case "bits:sat"    => bitsMaxSATSimple(parseContext(args))
+    case "bits:sat:99" => bitsMaxSATAlmostOptimal(parseContext(args))
+    case "perm:om"     => permOneMaxSimple(parseContext(args))
     case "bits:om:tuning"  => bitsOneMaxTunings(parseContext(args))
     case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args))
   }
@@ -91,6 +96,31 @@ object RunningTimes extends Main.Module {
       for ((name, alg) <- algorithms) {
         scheduler addTask {
           val time = alg.optimize(new OneMax(n))
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsOneMaxAlmostOptimal(context: Context): Unit = {
+    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = StartFromSqrtN
+
+    val algorithms = Seq(
+      "RLS" -> RLS,
+      "(1+1) EA" -> OnePlusOneEA.PracticeAware,
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda),
+      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1)),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3)),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5)),
+      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7)),
+      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9)),
+    )
+
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val time = alg.optimize(new OneMax(n))(indOps = almostOptimalBitStringOps, deltaOps = implicitly)
           s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
@@ -169,6 +199,35 @@ object RunningTimes extends Main.Module {
     }
   }
 
+  private def bitsMaxSATAlmostOptimal(context: Context): Unit = {
+    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = StartFromSqrtN
+
+    val algorithms = Seq(
+      ("RLS", Int.MaxValue, RLS),
+      ("(1+1) EA", Int.MaxValue, OnePlusOneEA.PracticeAware),
+      ("(1+(λ,λ)) GA, λ<=n", 16384, new OnePlusLambdaLambdaGA(defaultOneFifthLambda)),
+      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda)),
+      ("(1+(λ,λ)) GA, λ~pow(2.1)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.1))),
+      ("(1+(λ,λ)) GA, λ~pow(2.3)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.3))),
+      ("(1+(λ,λ)) GA, λ~pow(2.5)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.5))),
+      ("(1+(λ,λ)) GA, λ~pow(2.7)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.7))),
+      ("(1+(λ,λ)) GA, λ~pow(2.9)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.9))),
+    )
+
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      for ((name, limit, alg) <- algorithms) {
+        if (n <= limit) {
+          scheduler addTask {
+            val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt,
+                                                          RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
+            s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          }
+        }
+      }
+    }
+  }
+
   private def permOneMaxSimple(context: Context): Unit = {
     val algorithms = Seq(
       ("RLS", Int.MaxValue, RLS),
@@ -197,6 +256,18 @@ object RunningTimes extends Main.Module {
       if (index < 0) throw new IllegalArgumentException(s"No option '$option' is given")
       if (index + 1 == args.length) throw new IllegalArgumentException(s"Option '$option' should have an argument")
       args(index + 1)
+    }
+  }
+
+  private object StartFromSqrtN extends HasIndividualOperations[Array[Boolean]] {
+    override def createStorage(problemSize: Int): Array[Boolean] = new Array(problemSize)
+    override def initializeRandomly(individual: Array[Boolean], rng: ThreadLocalRandom): Unit = {
+      val distance = math.sqrt(individual.length).toInt
+      var i = individual.length
+      while (i > 0) {
+        i -= 1
+        individual(i) = rng.nextInt(distance) != 0
+      }
     }
   }
 
