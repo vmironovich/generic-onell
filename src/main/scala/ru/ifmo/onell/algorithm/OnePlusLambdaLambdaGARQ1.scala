@@ -14,7 +14,7 @@ import scala.util.chaining._
 import scala.{specialized => sp}
 
 class OnePlusLambdaLambdaGARQ1(lambdaTuning: Long => LambdaTuning,
-                               constantTuning: ConstantTuning = rq1Tuning,
+                               constantTuning: ConstantTuning = defaultTuning,
                                populationRounding: PopulationSizeRounding = roundDownPopulationSize,
                                crossoverStrength: CrossoverStrength = defaultCrossoverStrength,
                                bePracticeAware: Boolean = true)
@@ -151,10 +151,8 @@ class OnePlusLambdaLambdaGARQ1(lambdaTuning: Long => LambdaTuning,
       val buff = combinationsL(change, Ns.length, Ns)
 
       buff.foreach(ls => {
-        var f = baseFitness.asInstanceOf[Int]
-        f += 2 * ls(0) + ls(1) - ls(2) - 2 * ls(3)
-
-        val badMut = ls(0) + ls(1) < 1
+        val newFitness = lriw.applyTheoreticalDelta(ls, baseFitness.asInstanceOf[Long])
+        val badMut = lriw.isBadMutation(ls)
 
         var mutProb = BigDecimal(1)
         var i = 0
@@ -166,12 +164,12 @@ class OnePlusLambdaLambdaGARQ1(lambdaTuning: Long => LambdaTuning,
 
         mutProb = mutProb / (problemSize choose change)
 
-        val currValue = mutMap.getOrElse(f.asInstanceOf[F], (0D, 0D))
+        val currValue = mutMap.getOrElse(newFitness.asInstanceOf[F], (0D, 0D))
 
         val mutBad = if (badMut) currValue._1 + mutProb.toDouble else currValue._1
         val mutGood = if (badMut) currValue._2 else mutProb.toDouble + currValue._2
 
-        mutMap.put(f.asInstanceOf[F], (mutBad, mutGood))
+        mutMap.put(newFitness.asInstanceOf[F], (mutBad, mutGood))
       })
       mutMap
     }

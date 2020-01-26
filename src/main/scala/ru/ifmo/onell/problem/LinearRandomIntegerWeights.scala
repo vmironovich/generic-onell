@@ -75,6 +75,30 @@ class LinearRandomIntegerWeights(val problemSize: Int, val maxWeight: Int, rando
     NArr
   }
 
+  def applyTheoreticalDelta(ls: List[Int], currentFitness: Long): Long = {
+    var newFitness = currentFitness
+    var i = 0
+    while (i < maxWeight) {
+      newFitness += ls(i) * (maxWeight - i)
+      i += 1
+    }
+    while (i < maxWeight * 2) {
+      newFitness -= ls(i) * (i - maxWeight + 1)
+      i += 1
+    }
+    newFitness
+  }
+
+  def isBadMutation(ls: List[Int]): Boolean = {
+    var goodGens = 0
+    var i = 0
+    while (i < maxWeight) {
+      goodGens += ls(i)
+      i += 1
+    }
+    goodGens < 1
+  }
+
   def Ls(ind: Array[Boolean], delta: OrderedSet[Int]): Array[Int] = {
     val NArr = Array.fill(maxWeight * 2)(0)
 
