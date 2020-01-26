@@ -7,8 +7,8 @@ import scala.util.Using
 
 import ru.ifmo.onell.Main
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
-import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
-import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
+import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusLambdaLambdaGARQ1, OnePlusOneEA, RLS}
+import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, LinearRandomIntegerWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
 import ru.ifmo.onell.util.par.{Executor, Multiplexer, ParallelExecutor, SequentialExecutor}
 
 object RunningTimes extends Main.Module {
@@ -18,6 +18,7 @@ object RunningTimes extends Main.Module {
 
   override def longDescription: Seq[String] = Seq(
     "The following commands run experiments for problems on bit strings:",
+    "  rq1             <context>: for RQ1 experiments",
     "  bits:om         <context>: for OneMax",
     "  bits:l2d        <context>: for linear functions with random weights from [1;2]",
     "  bits:sat        <context>: for the MAX-SAT problem with logarithmic density",
@@ -34,11 +35,13 @@ object RunningTimes extends Main.Module {
   )
 
   override def moduleMain(args: Array[String]): Unit = args(0) match {
-    case "bits:om"  => bitsOneMaxSimple(parseContext(args))
+    case "rq1" => bitsLinearIntRQ1(parseContext(args))
+    case "rq1:net" => bitsLinearIntRQ1Net(parseContext(args))
+    case "bits:om" => bitsOneMaxSimple(parseContext(args))
     case "bits:l2d" => bitsLinearDoubleSimple(parseContext(args))
     case "bits:sat" => bitsMaxSATSimple(parseContext(args))
-    case "perm:om"  => permOneMaxSimple(parseContext(args))
-    case "bits:om:tuning"  => bitsOneMaxTunings(parseContext(args))
+    case "perm:om" => permOneMaxSimple(parseContext(args))
+    case "bits:om:tuning" => bitsOneMaxTunings(parseContext(args))
     case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args))
   }
 
@@ -73,6 +76,62 @@ object RunningTimes extends Main.Module {
     "Down/Hom" -> new OnePlusLambdaLambdaGA(lt, defaultTuning, roundDownPopulationSize, homogeneousCrossoverStrength),
     "Rnd/Hom" -> new OnePlusLambdaLambdaGA(lt, defaultTuning, probabilisticPopulationSize, homogeneousCrossoverStrength),
   )
+
+  /*private def bitsBinVal(context: Context): Unit = {
+    val algorithms = Seq(
+      "(1+1) EA RQ1" -> OnePlusOneEARQ1.PracticeAware
+    )
+
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val time = alg.optimize(new BinVal(n, seeder.nextLong()))
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }*/
+
+  private def bitsLinearIntRQ1(context: Context): Unit = {
+    val algorithms = Seq(
+      "(1+(λ,λ)) GARQ1, λ=4" -> new OnePlusLambdaLambdaGARQ1(fixedLambda(4), constantTuning = defaultTuning),
+      //"(1+(λ,λ)) GA RQ1, λ<=n" -> new OnePlusLambdaLambdaGARQ1(defaultOneFifthLambda),
+      "(1+(λ,λ)) GA, λ=4" -> new OnePlusLambdaLambdaGA(fixedLambda(4), constantTuning = defaultTuning),
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
+      //"RLS" -> RLS,
+      //"(1+1) EA" -> OnePlusOneEA.PracticeAware,
+      //"(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5)),
+    )
+
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val time = alg.optimize(new LinearRandomIntegerWeights(n, 2, seeder.nextLong()))
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsLinearIntRQ1Net(context: Context): Unit = {
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      for (lambda <- 4 until 24 by 4) {
+        val algorithms = Seq(
+          "(1+(λ,λ)) GARQ1, λ=" -> new OnePlusLambdaLambdaGARQ1(fixedLambda(lambda)),
+          "(1+(λ,λ)) GA, λ=" -> new OnePlusLambdaLambdaGA(fixedLambda(lambda)),
+        )
+        for ((name, alg) <- algorithms) {
+          scheduler addTask {
+            val time = alg.optimize(new LinearRandomIntegerWeights(n, 2, seeder.nextLong()))
+            s"""{"n":$n,"algorithm":"${name + lambda}","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          }
+        }
+      }
+    }
+  }
 
   private def bitsOneMaxSimple(context: Context): Unit = {
     val algorithms = Seq(
