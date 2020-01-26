@@ -103,17 +103,7 @@ object RunningTimes extends Main.Module {
   }
 
   private def bitsOneMaxAlmostOptimal(context: Context): Unit = {
-    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = new HasIndividualOperations[Array[Boolean]] {
-      override def createStorage(problemSize: Int): Array[Boolean] = new Array(problemSize)
-      override def initializeRandomly(individual: Array[Boolean], rng: ThreadLocalRandom): Unit = {
-        val distance = math.sqrt(individual.length).toInt
-        var i = individual.length
-        while (i > 0) {
-          i -= 1
-          individual(i) = rng.nextInt(distance) != 0
-        }
-      }
-    }
+    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = StartFromSqrtN
 
     val algorithms = Seq(
       "RLS" -> RLS,
@@ -208,17 +198,7 @@ object RunningTimes extends Main.Module {
   }
 
   private def bitsMaxSATAlmostOptimal(context: Context): Unit = {
-    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = new HasIndividualOperations[Array[Boolean]] {
-      override def createStorage(problemSize: Int): Array[Boolean] = new Array(problemSize)
-      override def initializeRandomly(individual: Array[Boolean], rng: ThreadLocalRandom): Unit = {
-        val distance = math.sqrt(individual.length).toInt
-        var i = individual.length
-        while (i > 0) {
-          i -= 1
-          individual(i) = rng.nextInt(distance) != 0
-        }
-      }
-    }
+    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = StartFromSqrtN
 
     val algorithms = Seq(
       ("RLS", Int.MaxValue, RLS),
@@ -274,6 +254,18 @@ object RunningTimes extends Main.Module {
       if (index < 0) throw new IllegalArgumentException(s"No option '$option' is given")
       if (index + 1 == args.length) throw new IllegalArgumentException(s"Option '$option' should have an argument")
       args(index + 1)
+    }
+  }
+
+  private object StartFromSqrtN extends HasIndividualOperations[Array[Boolean]] {
+    override def createStorage(problemSize: Int): Array[Boolean] = new Array(problemSize)
+    override def initializeRandomly(individual: Array[Boolean], rng: ThreadLocalRandom): Unit = {
+      val distance = math.sqrt(individual.length).toInt
+      var i = individual.length
+      while (i > 0) {
+        i -= 1
+        individual(i) = rng.nextInt(distance) != 0
+      }
     }
   }
 
