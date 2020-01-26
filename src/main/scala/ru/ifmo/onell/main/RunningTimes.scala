@@ -157,11 +157,13 @@ object RunningTimes extends Main.Module {
 
     val seeder = new Random(314252354)
     context.run { (scheduler, n) =>
+      val nClauses = (4 * n * math.log(n)).toInt
       for ((name, alg) <- algorithms) {
         scheduler addTask {
-          val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt,
-                                                        RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
-          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          val t0 = System.nanoTime()
+          val time = alg.optimize(new RandomPlanted3SAT(n, nClauses, RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
+          val consumed = (System.nanoTime() - t0) * 1e-9
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n},"wall-clock time":$consumed}"""
         }
       }
     }
