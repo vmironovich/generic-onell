@@ -1,15 +1,16 @@
 package ru.ifmo.onell.algorithm
 
+import java.math.BigInteger
 import java.util.concurrent.{ThreadLocalRandom => Random}
 
 import ru.ifmo.onell._
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 import ru.ifmo.onell.problem.LinearRandomIntegerWeights
 import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSpecialization => fsp}
+import ru.ifmo.onell.util.lriw.DefaultMutationCombinator
 
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 import scala.util.chaining._
 import scala.{specialized => sp}
 
@@ -38,14 +39,13 @@ class OnePlusLambdaLambdaGARQ1(lambdaTuning: Long => LambdaTuning,
     }
 
     @tailrec
-    def runMutationsEtc(remaining: Int, baseFitness: F, change: Int, bestFitness: F, badProb: Double, mutMap: mutable.HashMap[F, (Double, Double)]): F = {
+    def runMutationsEtc(remaining: Int, baseFitness: F, change: Int, bestFitness: F, badProb: Double, mutMap: mutable.HashMap[F, Double]): F = {
       if (remaining == 0) {
         bestFitness
       } else {
         deltaOps.initializeDeltaWithGivenSize(mutation, nChanges, change, rng)
         val currFitness = fitness.evaluateAssumingDelta(individual, mutation, baseFitness)
-        val currProbMap = mutMap(currFitness)
-        val currBadProb = currProbMap._1 / (currProbMap._1 + currProbMap._2)
+        val currBadProb = mutMap(currFitness)
 
         if (currBadProb < badProb || ((currBadProb - badProb).abs < 1e-6 && fitness.compare(bestFitness, currFitness) < 0)) {
           mutationBest.copyFrom(mutation)
@@ -56,11 +56,10 @@ class OnePlusLambdaLambdaGARQ1(lambdaTuning: Long => LambdaTuning,
       }
     }
 
-    def runMutations(remaining: Int, baseFitness: F, change: Int, mutMap: mutable.HashMap[F, (Double, Double)]): F = {
+    def runMutations(remaining: Int, baseFitness: F, change: Int, mutMap: mutable.HashMap[F, Double]): F = {
       mutationBest.copyFrom(mutation)
       val currentFitness = fitness.evaluateAssumingDelta(individual, mutation, baseFitness)
-      val currProbMap = mutMap(currentFitness)
-      val badProb = currProbMap._1 / (currProbMap._1 + currProbMap._2)
+      val badProb = mutMap(currentFitness)
       runMutationsEtc(remaining - 1, baseFitness, change, currentFitness, badProb, mutMap)
     }
 
@@ -118,59 +117,24 @@ class OnePlusLambdaLambdaGARQ1(lambdaTuning: Long => LambdaTuning,
       runPracticeUnawareCrossoverImpl(remaining - 1, baseFitness, mutantFitness, newFitness, expectedChange, mutantDistance)
     }
 
-    def combinationsL(sum: Int, len: Int, bounds: Array[Int]): ListBuffer[List[Int]] = {
-      val buff = new ListBuffer[List[Int]]
-      combinationsL2(sum, len, bounds, new ListBuffer[Int], buff)
-      buff
-    }
-
-    def combinationsL2(sum: Int, len: Int, bounds: Array[Int], result: ListBuffer[Int], buff: ListBuffer[List[Int]]): Unit = {
-      if (len == 1) {
-        if (sum <= bounds(result.size)) {
-          result.addOne(sum)
-          buff.addOne(result.result())
-        }
-        return
-      }
-      val bound: Int = bounds(result.size)
-      for (i <- Math.max(sum - bound, 0) until sum + 1) {
-        val res2 = ListBuffer.from(result)
-        res2.addOne(sum - i)
-        combinationsL2(i, len - 1, bounds, res2, buff)
-      }
-    }
-
-    def calculateMutations(baseFitness: F, change: Int): mutable.HashMap[F, (Double, Double)] = {
-      val mutMap = new mutable.HashMap[F, (Double, Double)]()
-      //calc indiv Ns
+    def calculateMutations(baseFitness: F, change: Int): mutable.HashMap[F, Double] = {
+      val mutMap = new mutable.HashMap[F, Double]()
       val ind = individual.asInstanceOf[Array[Boolean]]
       val lriw = fitness.asInstanceOf[LinearRandomIntegerWeights]
 
       val Ns = lriw.Ns(ind)
-
-      val buff = combinationsL(change, Ns.length, Ns)
-
-      buff.foreach(ls => {
-        val newFitness = lriw.applyTheoreticalDelta(ls, baseFitness.asInstanceOf[Long])
-        val badMut = lriw.isBadMutation(ls)
-
-        var mutProb = BigDecimal(1)
-        var i = 0
-        while (i < Ns.length) {
-          if (ls(i) > 0)
-            mutProb *= Ns(i) choose ls(i)
-          i += 1
+      val combinations = DefaultMutationCombinator.compute(Ns, change)
+      val fitnessOffset = baseFitness.asInstanceOf[Long] - lriw.maxWeight * change
+      val big1e18 = BigInteger.valueOf(1000000000000000000L)
+      for (i <- combinations.indices) {
+        val fitness = (fitnessOffset + i).asInstanceOf[F]
+        val pb = combinations(i)(0)
+        val pg = combinations(i)(1)
+        val sum = pb.add(pg)
+        if (sum.signum() > 0) {
+          mutMap.put(fitness, pb.multiply(big1e18).divide(sum).doubleValue() / 1e18)
         }
-
-        mutProb = mutProb / (problemSize choose change)
-
-        val currValue = mutMap.getOrElse(newFitness.asInstanceOf[F], (0D, 0D))
-
-        val mutBad = if (badMut) currValue._1 + mutProb.toDouble else currValue._1
-        val mutGood = if (badMut) currValue._2 else mutProb.toDouble + currValue._2
-
-        mutMap.put(newFitness.asInstanceOf[F], (mutBad, mutGood))
-      })
+      }
       mutMap
     }
 
@@ -235,30 +199,4 @@ class OnePlusLambdaLambdaGARQ1(lambdaTuning: Long => LambdaTuning,
     iterationLogger.logIteration(1, firstFitness)
     iteration(firstFitness, 1)
   }
-
-  implicit class Combinations(n: Int) {
-
-    def choose(k: Int): BigDecimal = {
-      if (Combinations.crn(k)(n) != null)
-        return Combinations.crn(k)(n)
-      if (k > n)
-        return 0
-      var nc = n
-      var r = BigDecimal(1)
-      for (d <- 1 to k) {
-        r *= nc
-        nc -= 1
-        r /= d
-      }
-      Combinations.crn(k)(n) = r
-      r
-    }
-  }
-
-  object Combinations {
-    val crn: Array[Array[BigDecimal]] = Array.ofDim[BigDecimal](10000, 10000)
-  }
-
 }
-
-

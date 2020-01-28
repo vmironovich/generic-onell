@@ -77,31 +77,12 @@ object RunningTimes extends Main.Module {
     "Rnd/Hom" -> new OnePlusLambdaLambdaGA(lt, defaultTuning, probabilisticPopulationSize, homogeneousCrossoverStrength),
   )
 
-  /*private def bitsBinVal(context: Context): Unit = {
-    val algorithms = Seq(
-      "(1+1) EA RQ1" -> OnePlusOneEARQ1.PracticeAware
-    )
-
-    val seeder = new Random(314252354)
-    context.run { (scheduler, n) =>
-      for ((name, alg) <- algorithms) {
-        scheduler addTask {
-          val time = alg.optimize(new BinVal(n, seeder.nextLong()))
-          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
-        }
-      }
-    }
-  }*/
-
   private def bitsLinearIntRQ1(context: Context): Unit = {
     val algorithms = Seq(
-      "(1+(λ,λ)) GARQ1, λ=4" -> new OnePlusLambdaLambdaGARQ1(fixedLambda(4), constantTuning = defaultTuning),
-      //"(1+(λ,λ)) GA RQ1, λ<=n" -> new OnePlusLambdaLambdaGARQ1(defaultOneFifthLambda),
+      "(1+(λ,λ)) GA RQ1, λ=4" -> new OnePlusLambdaLambdaGARQ1(fixedLambda(4), constantTuning = defaultTuning),
+      "(1+(λ,λ)) GA RQ1, λ<=n" -> new OnePlusLambdaLambdaGARQ1(defaultOneFifthLambda),
       "(1+(λ,λ)) GA, λ=4" -> new OnePlusLambdaLambdaGA(fixedLambda(4), constantTuning = defaultTuning),
       "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
-      //"RLS" -> RLS,
-      //"(1+1) EA" -> OnePlusOneEA.PracticeAware,
-      //"(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5)),
     )
 
     val seeder = new Random(314252354)
@@ -120,7 +101,7 @@ object RunningTimes extends Main.Module {
     context.run { (scheduler, n) =>
       for (lambda <- 4 until 24 by 4) {
         val algorithms = Seq(
-          "(1+(λ,λ)) GARQ1, λ=" -> new OnePlusLambdaLambdaGARQ1(fixedLambda(lambda)),
+          "(1+(λ,λ)) GA RQ1, λ=" -> new OnePlusLambdaLambdaGARQ1(fixedLambda(lambda)),
           "(1+(λ,λ)) GA, λ=" -> new OnePlusLambdaLambdaGA(fixedLambda(lambda)),
         )
         for ((name, alg) <- algorithms) {

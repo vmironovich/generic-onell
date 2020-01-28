@@ -3,9 +3,7 @@ package ru.ifmo.onell.problem
 import java.util.Random
 
 import ru.ifmo.onell.Fitness
-import ru.ifmo.onell.util.{DenseIntSet, Helpers, OrderedSet}
-
-import scala.collection.mutable.ArrayBuffer
+import ru.ifmo.onell.util.{Helpers, OrderedSet}
 
 class LinearRandomIntegerWeights(val problemSize: Int, val maxWeight: Int, randomSeed: Long)
   extends Fitness[Array[Boolean], Long, Int]
@@ -75,30 +73,6 @@ class LinearRandomIntegerWeights(val problemSize: Int, val maxWeight: Int, rando
     NArr
   }
 
-  def applyTheoreticalDelta(ls: List[Int], currentFitness: Long): Long = {
-    var newFitness = currentFitness
-    var i = 0
-    while (i < maxWeight) {
-      newFitness += ls(i) * (maxWeight - i)
-      i += 1
-    }
-    while (i < maxWeight * 2) {
-      newFitness -= ls(i) * (i - maxWeight + 1)
-      i += 1
-    }
-    newFitness
-  }
-
-  def isBadMutation(ls: List[Int]): Boolean = {
-    var goodGens = 0
-    var i = 0
-    while (i < maxWeight) {
-      goodGens += ls(i)
-      i += 1
-    }
-    goodGens < 1
-  }
-
   def Ls(ind: Array[Boolean], delta: OrderedSet[Int]): Array[Int] = {
     val NArr = Array.fill(maxWeight * 2)(0)
 
@@ -115,29 +89,5 @@ class LinearRandomIntegerWeights(val problemSize: Int, val maxWeight: Int, rando
       i += 1
     }
     NArr
-  }
-
-  def genMut(ind: Array[Boolean], currentFitness: Long, bestLs: List[Int]): (Long, OrderedSet[Int]) = {
-    val mutation = new DenseIntSet(problemSize)
-    var newFitness = currentFitness
-    val listBuff = ArrayBuffer.from(bestLs)
-    var i = 0
-    while (i < ind.length) {
-      var w = 0
-      val j = if (ind(i)) {
-        w = -weights(i)
-        weights(i) + maxWeight - 1
-      } else {
-        w = weights(i)
-        -weights(i) + maxWeight
-      }
-      if (listBuff(j) > 0) {
-        mutation.add(i)
-        listBuff(j) = listBuff(j) - 1
-        newFitness += w
-      }
-      i += 1
-    }
-    (newFitness, mutation)
   }
 }
