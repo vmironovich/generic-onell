@@ -1,5 +1,7 @@
 package ru.ifmo.onell.util
 
+import java.math.BigInteger
+
 object Helpers {
   def countTrueBits(individual: Array[Boolean]): Int = {
     var i, rv = 0
@@ -29,5 +31,16 @@ object Helpers {
       individual(indices(i)) ^= true
       i -= 1
     }
+  }
+
+  def choose(n: Int, k: Int): BigInteger = {
+    var rv = BigInteger.ONE
+    var i = 0
+    while (i < k) {
+      rv = rv.multiply(BigInteger.valueOf(n - i))
+      i += 1
+      rv = rv.divide(BigInteger.valueOf(i))
+    }
+    rv
   }
 }

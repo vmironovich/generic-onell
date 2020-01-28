@@ -7,7 +7,7 @@ import ru.ifmo.onell._
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 import ru.ifmo.onell.problem.LinearRandomIntegerWeights
 import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSpecialization => fsp}
-import ru.ifmo.onell.util.lriw.BruteForceMutationCombinator
+import ru.ifmo.onell.util.lriw._
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -123,10 +123,11 @@ class OnePlusLambdaLambdaGARQ1(lambdaTuning: Long => LambdaTuning,
       val lriw = fitness.asInstanceOf[LinearRandomIntegerWeights]
 
       val Ns = lriw.Ns(ind)
-      val combinations = BruteForceMutationCombinator.compute(Ns, change)
+      val combinations = DynamicProgrammingMutationCombinator.compute(Ns, change)
       val fitnessOffset = baseFitness.asInstanceOf[Long] - lriw.maxWeight * change
       val big1e18 = BigInteger.valueOf(1000000000000000000L)
-      for (i <- combinations.indices) {
+      var i = 0
+      while (i < combinations.length) {
         val fitness = (fitnessOffset + i).asInstanceOf[F]
         val pb = combinations(i)(0)
         val pg = combinations(i)(1)
@@ -134,6 +135,7 @@ class OnePlusLambdaLambdaGARQ1(lambdaTuning: Long => LambdaTuning,
         if (sum.signum() > 0) {
           mutMap.put(fitness, pb.multiply(big1e18).divide(sum).doubleValue() / 1e18)
         }
+        i += 1
       }
       mutMap
     }

@@ -2,6 +2,8 @@ package ru.ifmo.onell.util.lriw
 
 import java.math.BigInteger
 
+import ru.ifmo.onell.util.Helpers
+
 object BruteForceMutationCombinator extends MutationCombinator {
   private[this] def forCombinationsL(sum: Int, len: Int, bounds: Array[Int])(fun: (Array[Int], BigInteger) => Unit): Unit = {
     combinationsL2(sum, 0, bounds, new Array(len), BigInteger.ONE, fun)
@@ -12,7 +14,7 @@ object BruteForceMutationCombinator extends MutationCombinator {
     if (idx + 1 == template.length) {
       if (sum <= bounds(idx)) {
         template(idx) = sum
-        fun(template, nComb)
+        fun(template, nComb.multiply(Helpers.choose(bounds(idx), sum)))
       }
     } else {
       val bound = bounds(idx)
@@ -55,9 +57,9 @@ object BruteForceMutationCombinator extends MutationCombinator {
   }
 
   override def compute(signedWeightCount: Array[Int], nBitsToFlip: Int): Array[Array[BigInteger]] = {
-    require(signedWeightCount.length % 2 == 0)
-    require(signedWeightCount.forall(_ >= 0))
-    require(nBitsToFlip <= signedWeightCount.sum)
+//    require(signedWeightCount.length % 2 == 0)
+//    require(signedWeightCount.forall(_ >= 0))
+//    require(nBitsToFlip <= signedWeightCount.sum)
 
     val maxWeight = signedWeightCount.length / 2
     val combinations = Array.fill(maxWeight * nBitsToFlip * 2 + 1, 2)(BigInteger.ZERO)
