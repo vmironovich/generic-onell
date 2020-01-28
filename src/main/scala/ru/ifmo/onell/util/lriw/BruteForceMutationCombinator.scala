@@ -2,7 +2,7 @@ package ru.ifmo.onell.util.lriw
 
 import java.math.BigInteger
 
-object DefaultMutationCombinator extends MutationCombinator {
+object BruteForceMutationCombinator extends MutationCombinator {
   private[this] def forCombinationsL(sum: Int, len: Int, bounds: Array[Int])(fun: (Array[Int], BigInteger) => Unit): Unit = {
     combinationsL2(sum, 0, bounds, new Array(len), BigInteger.ONE, fun)
   }
