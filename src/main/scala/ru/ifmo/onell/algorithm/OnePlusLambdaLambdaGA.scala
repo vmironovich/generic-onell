@@ -205,7 +205,18 @@ object OnePlusLambdaLambdaGA {
   }
 
   def fixedLogLambda(size: Long): LambdaTuning = new LambdaTuning {
-    override def lambda(rng: Random): Double = 2 * math.log(size + 1)
+    private[this] val theLambda = 2 * math.log(size + 1)
+    override def lambda(rng: Random): Double = theLambda
+    override def notifyChildIsBetter(): Unit = {}
+    override def notifyChildIsEqual(): Unit = {}
+    override def notifyChildIsWorse(): Unit = {}
+  }
+
+  def fixedLogTowerLambda(size: Long): LambdaTuning = new LambdaTuning {
+    private val logN = math.log(size)
+    private val logLogN = math.log(logN)
+    private val theLambda = math.sqrt(logN * logLogN / math.log(logLogN))
+    override def lambda(rng: Random): Double = theLambda
     override def notifyChildIsBetter(): Unit = {}
     override def notifyChildIsEqual(): Unit = {}
     override def notifyChildIsWorse(): Unit = {}
