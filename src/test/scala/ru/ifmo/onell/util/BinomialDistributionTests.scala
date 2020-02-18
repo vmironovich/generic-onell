@@ -4,39 +4,40 @@ import java.util.Random
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import ru.ifmo.onell.IntegerDistribution
 
 class BinomialDistributionTests extends AnyFlatSpec with Matchers {
-  @scala.annotation.tailrec
-  private def populate(dist: IntegerDistribution, trials: Int, rng: Random, target: Array[Int]): Unit = {
-    if (trials > 0) {
-      target(dist.sample(rng)) += 1
-      populate(dist, trials - 1, rng, target)
+  private def test(n: Int, p: Double, runs: Int): Unit = {
+    var nZeros, nOnes = 0
+    val dist = BinomialDistribution(n, p)
+    val rng = new Random(2563454774352232L)
+    var count = 0
+    while (count < runs) {
+      val sample = dist.sample(rng)
+      sample match {
+        case 0 => nZeros += 1
+        case 1 => nOnes += 1
+        case _ =>
+      }
+      count += 1
     }
+
+    val expectedZeros = math.pow(1 - p, n) * runs
+    val expectedOnes = math.pow(1 - p, n - 1) * p * n * runs
+    val tolerance = math.sqrt(n) * math.log(n) / n
+
+    val zeroLo = math.floor(expectedZeros * (1 - tolerance)).toInt
+    val zeroHi = math.ceil(expectedZeros * (1 + tolerance)).toInt
+    nZeros should (be >= zeroLo and be <= zeroHi)
+
+    val oneLo = math.floor(expectedOnes * (1 - tolerance)).toInt
+    val oneHi = math.ceil(expectedOnes * (1 + tolerance)).toInt
+    nOnes should (be >= oneLo and be <= oneHi)
   }
 
-  @scala.annotation.tailrec
-  private def compareArrays(a: Array[Int], b: Array[Int], idx: Int, delta: Int): Unit = {
-    if (idx < a.length) {
-      assert(math.abs(a(idx) - b(idx)) <= delta)
-      compareArrays(a, b, idx + 1, delta)
-    }
-  }
-
-  private def compare(n: Int, p: Double, trials: Int): Unit = {
-    val rng = new Random(n ^ p.hashCode() ^ (trials * 44438231L))
-    val naive, withScanner, withOneCall = new Array[Int](n + 1)
-    populate(BinomialDistribution.naive(n, p), trials, rng, naive)
-    populate(BinomialDistribution.withScanner(n, p), trials, rng, withScanner)
-    populate(BinomialDistribution.withOneSampleCounting(n, p), trials, rng, withOneCall)
-    compareArrays(naive, withScanner, 0, math.sqrt(trials).toInt)
-    compareArrays(naive, withOneCall, 0, math.sqrt(trials).toInt)
-  }
-
-  "distributions" should "be nearly equal for n=100, p=0.01" in compare(100, 0.01, 5000)
-  they should "be nearly equal for n=100, p=0.03" in compare(100, 0.03, 5000)
-  they should "be nearly equal for n=100, p=0.1" in compare(100, 0.1, 10000)
-  they should "be nearly equal for n=1000, p=0.001" in compare(1000, 0.001, 30000)
-  they should "be nearly equal for n=1000, p=0.02" in compare(1000, 0.02, 30000)
-  they should "be nearly equal for n=1000, p=0.1" in compare(1000, 0.1, 30000)
+  "The distribution" should "produce expected results for n=100, p=0.01" in test(100, 0.01, 5000)
+  it should "produce expected results for n=100, p=0.03" in test(100, 0.03, 5000)
+  it should "produce expected results for n=100, p=0.1" in test(100, 0.1, 10000)
+  it should "produce expected results for n=1000, p=0.001" in test(1000, 0.001, 30000)
+  it should "produce expected results for n=1000, p=0.02" in test(1000, 0.02, 30000)
+  it should "produce expected results for n=1000, p=0.1" in test(1000, 0.1, 30000)
 }
