@@ -9,6 +9,8 @@ import ru.ifmo.onell.Optimizer
 import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, LinearRandomIntegerWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
 
 class RLSTests extends AnyFlatSpec with Matchers {
+  private def RLS = new OnePlusOneEA(OnePlusOneEA.SingleBitMutation)
+
   "RLS" should "perform as expected on OneMax" in {
     val size = 200
     val om = new OneMax(size)
