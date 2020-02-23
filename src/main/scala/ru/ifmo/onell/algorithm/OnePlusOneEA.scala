@@ -26,7 +26,7 @@ object OnePlusOneEA {
     nChanges => BinomialDistribution(nChanges, 1.0 / nChanges)
 
   val ShiftMutation: MutationDistributionGenerator =
-    nChanges => BinomialDistribution(nChanges, 1.0 / nChanges).max(IntegerDistribution.constant(1))
+    nChanges => BinomialDistribution(nChanges, 1.0 / nChanges).max(1)
 
   val ResamplingMutation: MutationDistributionGenerator =
     nChanges => BinomialDistribution(nChanges, 1.0 / nChanges).takeWhen(_ > 0)

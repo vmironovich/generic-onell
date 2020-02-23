@@ -2,6 +2,8 @@ package ru.ifmo.onell.distribution
 
 import java.util.Random
 
+import scala.language.implicitConversions
+
 trait IntegerDistribution {
   import IntegerDistribution._
 
@@ -13,6 +15,8 @@ trait IntegerDistribution {
 
 object IntegerDistribution {
   def constant(value: Int): IntegerDistribution = _ => value
+
+  implicit def constant2distribution(value: Int): IntegerDistribution = constant(value)
 
   class TakeWhen(distribution: IntegerDistribution, predicate: Int => Boolean) extends IntegerDistribution {
     @scala.annotation.tailrec
