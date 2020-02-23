@@ -33,10 +33,10 @@ object FixedTarget extends Main.Module {
 
     locally {
       implicit val individualOps: HasIndividualOperations[Array[Boolean]] = ZeroBooleanOps
-      (0 until runs).foreach(_ => new OnePlusOneEA(OnePlusOneEA.StandardBitMutation).optimize(oneMax, collectorZero))
+      (0 until runs).foreach(_ => OnePlusOneEA.Standard.optimize(oneMax, collectorZero))
     }
     locally {
-      (0 until runs).foreach(_ => new OnePlusOneEA(OnePlusOneEA.StandardBitMutation).optimize(oneMax, collectorRand))
+      (0 until runs).foreach(_ => OnePlusOneEA.Standard.optimize(oneMax, collectorRand))
     }
 
     val harmonic = new Array[Double](n + 1)

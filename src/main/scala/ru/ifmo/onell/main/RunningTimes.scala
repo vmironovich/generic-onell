@@ -81,8 +81,8 @@ object RunningTimes extends Main.Module {
 
   private def bitsOneMaxSimple(context: Context): Unit = {
     val algorithms = Seq(
-      "RLS" -> new OnePlusOneEA(OnePlusOneEA.SingleBitMutation),
-      "(1+1) EA" -> new OnePlusOneEA(OnePlusOneEA.ResamplingMutation),
+      "RLS" -> OnePlusOneEA.RLS,
+      "(1+1) EA" -> OnePlusOneEA.Resampling,
       "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
       "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda),
       "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1)),
@@ -111,8 +111,8 @@ object RunningTimes extends Main.Module {
     implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = StartFromSqrtN
 
     val algorithms = Seq(
-      "RLS" -> new OnePlusOneEA(OnePlusOneEA.SingleBitMutation),
-      "(1+1) EA" -> new OnePlusOneEA(OnePlusOneEA.ResamplingMutation),
+      "RLS" -> OnePlusOneEA.RLS,
+      "(1+1) EA" -> OnePlusOneEA.Resampling,
       "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
       "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda),
       "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1)),
@@ -146,8 +146,8 @@ object RunningTimes extends Main.Module {
 
   private def bitsLinearDoubleSimple(context: Context): Unit = {
     val algorithms = Seq(
-      "RLS" -> new OnePlusOneEA(OnePlusOneEA.SingleBitMutation),
-      "(1+1) EA" -> new OnePlusOneEA(OnePlusOneEA.ResamplingMutation),
+      "RLS" -> OnePlusOneEA.RLS,
+      "(1+1) EA" -> OnePlusOneEA.Resampling,
       "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8)),
       "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
       "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5)),
@@ -179,8 +179,8 @@ object RunningTimes extends Main.Module {
 
   private def bitsMaxSATSimple(context: Context): Unit = {
     val algorithms = Seq(
-      "RLS" -> new OnePlusOneEA(OnePlusOneEA.SingleBitMutation),
-      "(1+1) EA" -> new OnePlusOneEA(OnePlusOneEA.ResamplingMutation),
+      "RLS" -> OnePlusOneEA.RLS,
+      "(1+1) EA" -> OnePlusOneEA.Resampling,
       "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
       "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda),
       "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1)),
@@ -208,8 +208,8 @@ object RunningTimes extends Main.Module {
     implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = StartFromSqrtN
 
     val algorithms = Seq(
-      ("RLS", Int.MaxValue, new OnePlusOneEA(OnePlusOneEA.SingleBitMutation)),
-      ("(1+1) EA", Int.MaxValue, new OnePlusOneEA(OnePlusOneEA.ResamplingMutation)),
+      ("RLS", Int.MaxValue, OnePlusOneEA.RLS),
+      ("(1+1) EA", Int.MaxValue, OnePlusOneEA.Resampling),
       ("(1+(λ,λ)) GA, λ<=n", 16384, new OnePlusLambdaLambdaGA(defaultOneFifthLambda)),
       ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda)),
       ("(1+(λ,λ)) GA, λ~pow(2.1)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.1))),
@@ -235,8 +235,8 @@ object RunningTimes extends Main.Module {
 
   private def permOneMaxSimple(context: Context): Unit = {
     val algorithms = Seq(
-      ("RLS", Int.MaxValue, new OnePlusOneEA(OnePlusOneEA.SingleBitMutation)),
-      ("(1+1) EA", Int.MaxValue, new OnePlusOneEA(OnePlusOneEA.ResamplingMutation)),
+      ("RLS", Int.MaxValue, OnePlusOneEA.RLS),
+      ("(1+1) EA", Int.MaxValue, OnePlusOneEA.Resampling),
       ("(1+(λ,λ)) GA, λ=10", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLambda(10))),
       ("(1+(λ,λ)) GA, λ=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLogLambda)),
       ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda)),

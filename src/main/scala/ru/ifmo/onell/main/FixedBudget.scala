@@ -64,8 +64,8 @@ object FixedBudget extends Main.Module {
   }
 
   private val optimizers: IndexedSeq[(String, TerminationConditionTracker[Int] => Optimizer)] = IndexedSeq(
-    ("(1+1) EA aware", _ => new OnePlusOneEA(OnePlusOneEA.ResamplingMutation)),
-    ("(1+1) EA unaware", _ => new OnePlusOneEA(OnePlusOneEA.StandardBitMutation)),
+    ("(1+1) EA aware", _ => OnePlusOneEA.Resampling),
+    ("(1+1) EA unaware", _ => OnePlusOneEA.Standard),
     ("uncapped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda), bePracticeAware = false)),
     ("uncapped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda), bePracticeAware = true)),
     ("capped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda), bePracticeAware = false)),
