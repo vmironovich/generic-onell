@@ -12,7 +12,7 @@ class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
   "(1+LL) GA" should "perform as expected on OneMax" in {
     val size = 200
     val om = new OneMax(size)
-    val ll = new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling)
+    val ll = new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)
     val runs = IndexedSeq.fill(100)(ll.optimize(om))
     val found = runs.sum.toDouble / runs.size
     found should (be <= 1300.0)
@@ -22,7 +22,7 @@ class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
   it should "perform as expected on OneMax without being practice-aware" in {
     val size = 200
     val om = new OneMax(size)
-    val ll = new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, bePracticeAware = false)
+    val ll = new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore)
     val runs = IndexedSeq.fill(100)(ll.optimize(om))
     val found = runs.sum.toDouble / runs.size
     found should (be <= 2100.0)
@@ -32,7 +32,7 @@ class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
   it should "perform as expected on OneMaxPerm" in {
     val size = 200
     val om = new OneMaxPerm(size)
-    val ll = new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling)
+    val ll = new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)
     val runs = IndexedSeq.fill(10)(ll.optimize(om))
     val found = runs.sum.toDouble / runs.size
     found should (be <= 1.2e5)
@@ -41,7 +41,7 @@ class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
   it should "perform as expected on RandomPlanted3SAT with log capping" in {
     val size = 200
     val om = new RandomPlanted3SAT(size, size * 20, RandomPlanted3SAT.EasyGenerator, 3454353454545L)
-    val ll = new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling)
+    val ll = new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)
     val runs = IndexedSeq.fill(100)(ll.optimize(om))
     val found = runs.sum.toDouble / runs.size
     found should (be <= 1900.0)
@@ -52,7 +52,7 @@ class OnePlusLambdaLambdaGATests extends AnyFlatSpec with Matchers {
     val size = 200
     val om = new OneMax(size)
     val logger = new ValidationLogger
-    val ll = new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling)
+    val ll = new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)
     val calls = ll.optimize(om, logger)
     logger.fitness shouldBe 200
     logger.evaluations shouldBe calls

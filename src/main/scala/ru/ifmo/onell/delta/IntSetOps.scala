@@ -8,20 +8,6 @@ import ru.ifmo.onell.util.{BinomialScanner, DenseIntSet, OrderedSet}
 object IntSetOps extends HasDeltaOperations[Int] {
   override def createStorage(nChanges: Int): OrderedSet[Int] = new DenseIntSet(nChanges)
 
-  override def initializeDeltaWithDefaultSize(delta: OrderedSet[Int], nChanges: Int, expectedSize: Double, rng: Random): Int = {
-    delta.clear()
-
-    val scanner = BinomialScanner(expectedSize / nChanges)
-    var index = scanner.offset(rng) - 1L
-    while (index < nChanges) {
-      delta.add(index.toInt)
-      index += scanner.offset(rng)
-    }
-
-    delta.shuffleOrder(rng)
-    delta.size
-  }
-
   override def initializeDeltaWithGivenSize(delta: OrderedSet[Int], nChanges: Int, size: Int, rng: Random): Unit = {
     delta.clear()
     while (delta.size < size) {
@@ -29,17 +15,12 @@ object IntSetOps extends HasDeltaOperations[Int] {
     }
   }
 
-  override def initializeDeltaFromExisting(delta: OrderedSet[Int], source: OrderedSet[Int], expectedSize: Double, rng: Random): Int = {
+  override def initializeDeltaFromExisting(delta: OrderedSet[Int], source: OrderedSet[Int], size: Int, rng: Random): Unit = {
     delta.clear()
-
     val sourceSize = source.size
-    val scanner = BinomialScanner(expectedSize / sourceSize)
-    var index = scanner.offset(rng) - 1L
-    while (index < sourceSize) {
-      delta.add(source(index.toInt))
-      index += scanner.offset(rng)
+    while (delta.size < size) {
+      // TODO: this can be much slower than intended if size is almost sourceSize
+      delta.add(source(rng.nextInt(sourceSize)))
     }
-
-    delta.size
   }
 }

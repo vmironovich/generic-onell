@@ -10,14 +10,15 @@ import scala.{specialized => sp}
 import ru.ifmo.onell._
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 import ru.ifmo.onell.distribution.{BinomialDistribution, IntegerDistribution}
+import ru.ifmo.onell.util.OrderedSet
 import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSpecialization => fsp}
 
 class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
                             mutationStrength: MutationStrength,
+                            crossoverStrength: CrossoverStrength,
+                            goodMutantStrategy: GoodMutantStrategy,
                             constantTuning: ConstantTuning = defaultTuning,
-                            populationRounding: PopulationSizeRounding = roundDownPopulationSize,
-                            crossoverStrength: CrossoverStrength = defaultCrossoverStrength,
-                            bePracticeAware: Boolean = true)
+                            populationRounding: PopulationSizeRounding = roundDownPopulationSize)
   extends Optimizer
 {
   override def optimize[I, @sp(fsp) F, @sp(csp) C]
@@ -57,58 +58,40 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
       runMutationsEtc(remaining - 1, baseFitness, change, currentFitness)
     }
 
-    @tailrec
-    def runPracticeAwareCrossover(remaining: Int, baseFitness: F, expectedChange: Double, mutantDistance: Int, result: Aux[F]): Unit = {
-      if (remaining > 0) {
-        val size = deltaOps.initializeDeltaFromExisting(crossover, mutationBest, expectedChange, rng)
-        if (size == 0) {
-          // no bits from the child, skipping entirely
-          runPracticeAwareCrossover(remaining, baseFitness, expectedChange, mutantDistance, result)
-        } else {
-          if (size != mutantDistance) {
-            // if not all bits from the child, we shall evaluate the offspring, and if it is better, update the best
-            val currFitness = fitness.evaluateAssumingDelta(individual, crossover, baseFitness)
-            aux.incrementCalls()
-            if (fitness.compare(aux.fitness, currFitness) <= 0) { // <= since we want to be able to overwrite parent
-              crossoverBest.copyFrom(crossover)
-              aux.fitness = currFitness
-            }
-          }
-          runPracticeAwareCrossover(remaining - 1, baseFitness, expectedChange, mutantDistance, result)
-        }
+    def updateOnCrossover(result: Aux[F], currFitness: F, source: OrderedSet[C], testedQueries: Int): Unit = {
+      if (testedQueries == 0 || fitness.compare(currFitness, result.fitness) > 0) {
+        // A special hack: if source is crossoverBest, this means to clear crossoverBest.
+        if (crossoverBest == source)
+          crossoverBest.clear()
+        else
+          crossoverBest.copyFrom(source)
+        result.fitness = currFitness
       }
     }
 
-    def fitnessFromDistance(distance: Int, baseFitness: F, mutantDistance: Int, mutantFitness: F): F = {
-      if (distance == 0)
-        baseFitness
-      else if (distance == mutantDistance)
-        mutantFitness
-      else
-        fitness.evaluateAssumingDelta(individual, crossover, baseFitness)
-    }
-
-    @tailrec
-    def runPracticeUnawareCrossoverImpl(remaining: Int, baseFitness: F, mutantFitness: F, bestFitness: F,
-                                        expectedChange: Double, mutantDistance: Int): F = {
-      if (remaining == 0) bestFitness else {
-        val size = deltaOps.initializeDeltaFromExisting(crossover, mutationBest, expectedChange, rng)
-        val newFitness = fitnessFromDistance(size, baseFitness, mutantDistance, mutantFitness)
-        if (fitness.compare(bestFitness, newFitness) < 0) {
-          crossoverBest.copyFrom(crossover)
-          runPracticeUnawareCrossoverImpl(remaining - 1, baseFitness, mutantFitness, newFitness, expectedChange, mutantDistance)
+    def runCrossover(remaining: Int, baseFitness: F, mutantFitness: F, mutantDistance: Int,
+                     distribution: IntegerDistribution, result: Aux[F]): Int = {
+      var triedQueries, testedQueries = 0
+      while (triedQueries < remaining) {
+        val distance = distribution.sample(rng)
+        if (distance == 0) {
+          //                 this means "clear": vvvvvvvvvvvvv
+          updateOnCrossover(result, baseFitness, crossoverBest, testedQueries)
+          testedQueries += 1
+          triedQueries += 1
+        } else if (distance == mutantDistance) {
+          updateOnCrossover(result, mutantFitness, mutationBest, testedQueries)
+          triedQueries += goodMutantStrategy.incrementForTriedQueries
+          testedQueries += goodMutantStrategy.incrementForTestedQueries
         } else {
-          runPracticeUnawareCrossoverImpl(remaining - 1, baseFitness, mutantFitness, bestFitness, expectedChange, mutantDistance)
+          deltaOps.initializeDeltaFromExisting(crossover, mutationBest, distance, rng)
+          val newFitness = fitness.evaluateAssumingDelta(individual, crossover, baseFitness)
+          updateOnCrossover(result, newFitness, crossover, testedQueries)
+          triedQueries += 1
+          testedQueries += 1
         }
       }
-    }
-
-    def runPracticeUnawareCrossover(remaining: Int, baseFitness: F, mutantFitness: F, expectedChange: Double, mutantDistance: Int): F = {
-      assert(remaining > 0)
-      val size = deltaOps.initializeDeltaFromExisting(crossover, mutationBest, expectedChange, rng)
-      val newFitness = fitnessFromDistance(size, baseFitness, mutantDistance, mutantFitness)
-      crossoverBest.copyFrom(crossover)
-      runPracticeUnawareCrossoverImpl(remaining - 1, baseFitness, mutantFitness, newFitness, expectedChange, mutantDistance)
+      testedQueries
     }
 
     @tailrec
@@ -120,41 +103,66 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
 
       val mutantDistance = mutationStrength(nChangesL, constantTuning.mutationProbabilityQuotient * lambda).sample(rng)
       if (mutantDistance == 0) {
-        // TODO: the particular choice of the simulated fitness evaluation is a function on the crossover sampling strategy.
-        iteration(f, evaluationsSoFar + mutationPopSize + crossoverPopSize)
+        // Always simulate mutations, but skip crossovers if they don't support zero distance
+        val crossoverContribution = if (crossoverStrength.isStrictlyPositive) 0 else crossoverPopSize
+        val newEvaluations = evaluationsSoFar + mutationPopSize + crossoverContribution
+        iterationLogger.logIteration(newEvaluations, f)
+        iteration(f, newEvaluations)
       } else {
         val bestMutantFitness = runMutations(mutationPopSize, f, mutantDistance)
-        val crossStrength = crossoverStrength(lambda, mutantDistance, constantTuning.crossoverProbabilityQuotient)
-        if (bePracticeAware) {
-          crossoverBest.copyFrom(mutationBest)
-          aux.initialize(bestMutantFitness)
-          runPracticeAwareCrossover(
-            crossoverPopSize, f,
-            crossStrength,
-            mutantDistance, aux)
+        if (goodMutantStrategy == GoodMutantStrategy.SkipCrossover && fitness.compare(bestMutantFitness, f) > 0) {
+          val newEvaluations = evaluationsSoFar + mutationPopSize
+          fitness.applyDelta(individual, mutationBest, f).tap(nf => assert(fitness.compare(bestMutantFitness, nf) == 0))
+          iterationLogger.logIteration(newEvaluations, bestMutantFitness)
+          iteration(bestMutantFitness, newEvaluations)
+        } else if (mutantDistance == 1 && goodMutantStrategy == GoodMutantStrategy.DoNotSampleIdentical) {
+          // A very special case, which would enter an infinite loop if not taken care
+          // If the crossover can sample zeros, all the children are zeros, and this can be shortcut
+          // However, if it cannot, it would run forever trying to sample at least something.
+          // For this reason we say specially that we don't try crossovers in this case.
+          if (crossoverStrength.isStrictlyPositive) {
+            val newEvaluations = evaluationsSoFar + mutationPopSize
+            iterationLogger.logIteration(newEvaluations, bestMutantFitness)
+            if (fitness.compare(bestMutantFitness, f) > 0) {
+              fitness.applyDelta(individual, mutationBest, f).tap(nf => assert(fitness.compare(bestMutantFitness, nf) == 0))
+              iteration(bestMutantFitness, newEvaluations)
+            } else {
+              iteration(f, newEvaluations)
+            }
+          } else {
+            val newEvaluations = evaluationsSoFar + mutationPopSize + crossoverPopSize
+            iterationLogger.logIteration(newEvaluations, bestMutantFitness)
+            iteration(f, newEvaluations)
+          }
         } else {
-          aux.initialize(runPracticeUnawareCrossover(crossoverPopSize, f, bestMutantFitness, crossStrength, mutantDistance))
-          aux.incrementCalls(crossoverPopSize)
-        }
-        val bestCrossFitness = aux.fitness
-        val crossEvs = aux.calls
+          val crossDistribution = crossoverStrength(lambda, mutantDistance, constantTuning.crossoverProbabilityQuotient)
+          val crossEvs = runCrossover(crossoverPopSize, f, bestMutantFitness, mutantDistance, crossDistribution, aux)
 
-        val fitnessComparison = fitness.compare(f, bestCrossFitness)
-        if (fitnessComparison < 0) {
-          lambdaP.notifyChildIsBetter()
-        } else if (fitnessComparison > 0) {
-          lambdaP.notifyChildIsWorse()
-        } else {
-          lambdaP.notifyChildIsEqual()
-        }
+          if (goodMutantStrategy == GoodMutantStrategy.DoNotSampleIdentical || goodMutantStrategy == GoodMutantStrategy.DoNotCountIdentical) {
+            if (fitness.compare(bestMutantFitness, aux.fitness) > 0) {
+              aux.fitness = bestMutantFitness
+              crossoverBest.copyFrom(mutationBest)
+            }
+          }
 
-        val iterationCost = mutationPopSize + crossEvs
-        val nextFitness = if (fitnessComparison <= 0) {
-          // maybe replace with silent application of delta
-          fitness.applyDelta(individual, crossoverBest, f).tap(nf => assert(fitness.compare(bestCrossFitness, nf) == 0))
-        } else f
-        iterationLogger.logIteration(evaluationsSoFar + iterationCost, bestCrossFitness)
-        iteration(nextFitness, evaluationsSoFar + iterationCost)
+          val bestCrossFitness = aux.fitness
+          val fitnessComparison = fitness.compare(f, bestCrossFitness)
+          if (fitnessComparison < 0) {
+            lambdaP.notifyChildIsBetter()
+          } else if (fitnessComparison > 0) {
+            lambdaP.notifyChildIsWorse()
+          } else {
+            lambdaP.notifyChildIsEqual()
+          }
+
+          val iterationCost = mutationPopSize + crossEvs
+          val nextFitness = if (fitnessComparison <= 0) {
+            // maybe replace with silent application of delta
+            fitness.applyDelta(individual, crossoverBest, f).tap(nf => assert(fitness.compare(bestCrossFitness, nf) == 0))
+          } else f
+          iterationLogger.logIteration(evaluationsSoFar + iterationCost, bestCrossFitness)
+          iteration(nextFitness, evaluationsSoFar + iterationCost)
+        }
       }
     }
 
@@ -196,13 +204,62 @@ object OnePlusLambdaLambdaGA {
   }
 
   trait CrossoverStrength {
-    def apply(lambda: Double, mutantDistance: Int, quotient: Double): Double
+    def apply(lambda: Double, mutantDistance: Int, quotient: Double): IntegerDistribution
+    def isStrictlyPositive: Boolean
   }
 
-  final val defaultCrossoverStrength: CrossoverStrength =
-    (lambda: Double, mutantDistance: Int, quotient: Double) => quotient / lambda * mutantDistance
-  final val homogeneousCrossoverStrength: CrossoverStrength =
-    (_: Double, _: Int, quotient: Double) => quotient
+  object CrossoverStrength {
+    private[this] def bL(l: Double, d: Int, q: Double): IntegerDistribution = BinomialDistribution(d, q / l)
+    private[this] def bD(d: Int, q: Double): IntegerDistribution = BinomialDistribution(d, q / d)
+
+    final val StandardL: CrossoverStrength = new CrossoverStrength {
+      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bL(l, d , q)
+      override def isStrictlyPositive: Boolean = false
+    }
+    final val StandardD: CrossoverStrength = new CrossoverStrength {
+      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bD(d, q)
+      override def isStrictlyPositive: Boolean = false
+    }
+    final val ResamplingL: CrossoverStrength = new CrossoverStrength {
+      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bL(l, d , q).filter(_ > 0)
+      override def isStrictlyPositive: Boolean = true
+    }
+    final val ResamplingD: CrossoverStrength = new CrossoverStrength {
+      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bD(d, q).filter(_ > 0)
+      override def isStrictlyPositive: Boolean = true
+    }
+    final val ShiftL: CrossoverStrength = new CrossoverStrength {
+      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bL(l, d , q).max(1)
+      override def isStrictlyPositive: Boolean = true
+    }
+    final val ShiftD: CrossoverStrength = new CrossoverStrength {
+      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bD(d, q).max(1)
+      override def isStrictlyPositive: Boolean = true
+    }
+  }
+
+  sealed trait GoodMutantStrategy {
+    def incrementForTriedQueries: Int
+    def incrementForTestedQueries: Int
+  }
+  object GoodMutantStrategy {
+    case object Ignore extends GoodMutantStrategy {
+      override def incrementForTestedQueries: Int = 1
+      override def incrementForTriedQueries: Int = 1
+    }
+    case object SkipCrossover extends GoodMutantStrategy {
+      override def incrementForTestedQueries: Int = 1
+      override def incrementForTriedQueries: Int = 1
+    }
+    case object DoNotCountIdentical extends GoodMutantStrategy {
+      override def incrementForTestedQueries: Int = 0
+      override def incrementForTriedQueries: Int = 1
+    }
+    case object DoNotSampleIdentical extends GoodMutantStrategy {
+      override def incrementForTestedQueries: Int = 0
+      override def incrementForTriedQueries: Int = 0
+    }
+  }
 
   def fixedLambda(value: Double)(size: Long): LambdaTuning = new LambdaTuning {
     override def lambda(rng: Random): Double = value
@@ -277,19 +334,5 @@ object OnePlusLambdaLambdaGA {
 
   private final class Aux[@sp(fsp) F] {
     var fitness: F = _
-    var calls: Int = _
-
-    def initialize(fitness: F): Unit = {
-      this.fitness = fitness
-      this.calls = 0
-    }
-
-    def incrementCalls(): Unit = {
-      calls += 1
-    }
-
-    def incrementCalls(howMuch: Int): Unit = {
-      calls += howMuch
-    }
   }
 }

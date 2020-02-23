@@ -20,16 +20,6 @@ trait HasDeltaOperations[@specialized(csp) ChangeIndexType] {
   def createStorage(nChanges: ChangeIndexType): OrderedSet[ChangeIndexType]
 
   /**
-    * Initializes the given delta using some default size distribution law.
-    * @param delta the delta to be initialized.
-    * @param nChanges the number of possible changes.
-    * @param expectedSize the expected delta size.
-    * @param rng the random number generator.
-    * @return the size of the just-initialized delta.
-    */
-  def initializeDeltaWithDefaultSize(delta: OrderedSet[ChangeIndexType], nChanges: ChangeIndexType, expectedSize: Double, rng: Random): Int
-
-  /**
     * Initializes the given delta using the specified delta size.
     * @param delta the delta to be initialized.
     * @param nChanges the number of possible changes.
@@ -42,12 +32,11 @@ trait HasDeltaOperations[@specialized(csp) ChangeIndexType] {
     * Initializes the given delta using some default distribution law, but taking
     * @param delta the delta to be initialized.
     * @param source the source delta; the initialized delta shall be a subset of the source delta.
-    * @param expectedSize the expected delta size.
+    * @param size the delta subset size.
     * @param rng the random number generator.
-    * @return the size of the just-initialized delta.
     */
   def initializeDeltaFromExisting(delta: OrderedSet[ChangeIndexType], source: OrderedSet[ChangeIndexType],
-                                  expectedSize: Double, rng: Random): Int
+                                  size: Int, rng: Random): Unit
 }
 
 /**
