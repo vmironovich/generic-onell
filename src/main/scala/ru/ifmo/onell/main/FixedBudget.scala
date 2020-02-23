@@ -66,10 +66,18 @@ object FixedBudget extends Main.Module {
   private val optimizers: IndexedSeq[(String, TerminationConditionTracker[Int] => Optimizer)] = IndexedSeq(
     ("(1+1) EA aware", _ => OnePlusOneEA.Resampling),
     ("(1+1) EA unaware", _ => OnePlusOneEA.Standard),
-    ("uncapped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda), bePracticeAware = false)),
-    ("uncapped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda), bePracticeAware = true)),
-    ("capped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda), bePracticeAware = false)),
-    ("capped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda), bePracticeAware = true)),
+    ("uncapped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda),
+                                                        bePracticeAware = false,
+                                                        mutationStrength = MutationStrength.Standard)),
+    ("uncapped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda),
+                                                      bePracticeAware = true,
+                                                      mutationStrength = MutationStrength.Resampling)),
+    ("capped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda),
+                                                      bePracticeAware = false,
+                                                      mutationStrength = MutationStrength.Standard)),
+    ("capped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda),
+                                                    bePracticeAware = true,
+                                                    mutationStrength = MutationStrength.Resampling)),
   )
 
   private def runHardSat(problemSizes: Seq[Int]): Unit = {

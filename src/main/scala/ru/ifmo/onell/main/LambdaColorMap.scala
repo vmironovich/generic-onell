@@ -165,7 +165,8 @@ object LambdaColorMap extends Main.Module {
           collect3DPlots(lambda => new OnePlusLambdaLambdaGA(fixedLambda(lambda),
                                                              populationRounding = rounding,
                                                              crossoverStrength = crossover,
-                                                             bePracticeAware = practice),
+                                                             bePracticeAware = practice,
+                                                             mutationStrength = if (practice) MutationStrength.Resampling else MutationStrength.Standard),
                          n, runs, lambdaPower, weight,
                          s"$filePrefix-$roundingName-$crossoverName-$practiceName")
         }
@@ -184,7 +185,9 @@ object LambdaColorMap extends Main.Module {
 
         for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
           val fun = new OneMaxPerm(n)
-          val oll = new OnePlusLambdaLambdaGA(fixedLambda(lambda), populationRounding = probabilisticPopulationSize)
+          val oll = new OnePlusLambdaLambdaGA(fixedLambda(lambda),
+                                              populationRounding = probabilisticPopulationSize,
+                                              mutationStrength = OnePlusLambdaLambdaGA.MutationStrength.Resampling)
           val logger = new HammingImprovementStatistics(n)
 
           def newCallable(): Callable[Unit] = () => oll.optimize(fun, new PermImprovementCollector(logger))

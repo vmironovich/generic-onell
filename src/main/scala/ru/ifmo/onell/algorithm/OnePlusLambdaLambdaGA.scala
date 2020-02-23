@@ -7,11 +7,13 @@ import scala.collection.mutable
 import scala.util.chaining._
 import scala.{specialized => sp}
 
-import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
-import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSpecialization => fsp}
 import ru.ifmo.onell._
+import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
+import ru.ifmo.onell.distribution.{BinomialDistribution, IntegerDistribution}
+import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSpecialization => fsp}
 
 class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
+                            mutationStrength: MutationStrength,
                             constantTuning: ConstantTuning = defaultTuning,
                             populationRounding: PopulationSizeRounding = roundDownPopulationSize,
                             crossoverStrength: CrossoverStrength = defaultCrossoverStrength,
@@ -25,17 +27,12 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
   {
     val problemSize = fitness.problemSize
     val nChanges = fitness.numberOfChanges
-    val lambdaP = lambdaTuning(fitness.changeIndexTypeToLong(nChanges))
+    val nChangesL = fitness.changeIndexTypeToLong(nChanges)
+    val lambdaP = lambdaTuning(nChangesL)
     val rng = Random.current()
     val individual = indOps.createStorage(problemSize)
     val mutation, mutationBest, crossover, crossoverBest = deltaOps.createStorage(nChanges)
     val aux = new Aux[F]
-
-    @tailrec
-    def initMutation(expectedChange: Double): Int = {
-      val change = deltaOps.initializeDeltaWithDefaultSize(mutation, nChanges, expectedChange, rng)
-      if (change == 0 && bePracticeAware) initMutation(expectedChange) else change
-    }
 
     @tailrec
     def runMutationsEtc(remaining: Int, baseFitness: F, change: Int, bestFitness: F): F = {
@@ -54,6 +51,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
     }
 
     def runMutations(remaining: Int, baseFitness: F, change: Int): F = {
+      deltaOps.initializeDeltaWithGivenSize(mutation, nChanges, change, rng)
       mutationBest.copyFrom(mutation)
       val currentFitness = fitness.evaluateAssumingDelta(individual, mutation, baseFitness)
       runMutationsEtc(remaining - 1, baseFitness, change, currentFitness)
@@ -117,13 +115,12 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
     def iteration(f: F, evaluationsSoFar: Long): Long = if (fitness.isOptimalFitness(f)) evaluationsSoFar else {
       val lambda = lambdaP.lambda(rng)
 
-      val mutationExpectedChanges = constantTuning.mutationProbabilityQuotient * lambda
       val mutationPopSize = math.max(1, populationRounding(lambda * constantTuning.firstPopulationSizeQuotient, rng))
       val crossoverPopSize = math.max(1, populationRounding(lambda * constantTuning.secondPopulationSizeQuotient, rng))
 
-      val mutantDistance = initMutation(mutationExpectedChanges)
+      val mutantDistance = mutationStrength(nChangesL, constantTuning.mutationProbabilityQuotient * lambda).sample(rng)
       if (mutantDistance == 0) {
-        assert(!bePracticeAware)
+        // TODO: the particular choice of the simulated fitness evaluation is a function on the crossover sampling strategy.
         iteration(f, evaluationsSoFar + mutationPopSize + crossoverPopSize)
       } else {
         val bestMutantFitness = runMutations(mutationPopSize, f, mutantDistance)
@@ -186,6 +183,16 @@ object OnePlusLambdaLambdaGA {
     val lower = math.floor(fpValue).toInt
     val upper = math.ceil(fpValue).toInt
     if (lower == upper || rng.nextDouble() < upper - fpValue) lower else upper
+  }
+
+  trait MutationStrength {
+    def apply(nChanges: Long, multipliedLambda: Double): IntegerDistribution
+  }
+
+  object MutationStrength {
+    final val Standard: MutationStrength = (n, l) => BinomialDistribution(n, l / n)
+    final val Resampling: MutationStrength = (n, l) => BinomialDistribution(n, l / n).filter(_ > 0)
+    final val Shift: MutationStrength = (n, l) => BinomialDistribution(n, l / n).max(1)
   }
 
   trait CrossoverStrength {

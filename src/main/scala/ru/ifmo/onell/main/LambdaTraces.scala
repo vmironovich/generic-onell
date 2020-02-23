@@ -93,7 +93,8 @@ object LambdaTraces extends Main.Module {
           collectTraces(gen => new OnePlusLambdaLambdaGA(gen,
                                                          populationRounding = rounding,
                                                          crossoverStrength = crossover,
-                                                         bePracticeAware = practice),
+                                                         bePracticeAware = practice,
+                                                         mutationStrength = if (practice) MutationStrength.Resampling else MutationStrength.Standard),
                         n, runs, weight,
                         s"$filePrefix-$roundingName-$crossoverName-$practiceName.tex")
         }
