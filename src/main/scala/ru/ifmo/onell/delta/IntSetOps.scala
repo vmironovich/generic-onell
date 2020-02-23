@@ -3,12 +3,12 @@ package ru.ifmo.onell.delta
 import java.util.concurrent.{ThreadLocalRandom => Random}
 
 import ru.ifmo.onell.HasDeltaOperations
-import ru.ifmo.onell.util.{BinomialScanner, DenseIntSet, OrderedSet}
+import ru.ifmo.onell.util.{DenseIntSet, OrderedSet}
 
 object IntSetOps extends HasDeltaOperations[Int] {
   override def createStorage(nChanges: Int): OrderedSet[Int] = new DenseIntSet(nChanges)
 
-  override def initializeDeltaWithGivenSize(delta: OrderedSet[Int], nChanges: Int, size: Int, rng: Random): Unit = {
+  override def initializeDelta(delta: OrderedSet[Int], nChanges: Int, size: Int, rng: Random): Unit = {
     delta.clear()
     while (delta.size < size) {
       delta.add(rng.nextInt(nChanges))

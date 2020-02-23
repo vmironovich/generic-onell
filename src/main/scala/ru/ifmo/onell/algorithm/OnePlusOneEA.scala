@@ -64,7 +64,7 @@ class OnePlusOneEA(distributionGenerator: Long => IntegerDistribution) extends O
         iterationLogger.logIteration(soFar + 1, f)
         iterate(f, soFar + 1)
       } else {
-        deltaOps.initializeDeltaWithGivenSize(delta, nChanges, sz, rng)
+        deltaOps.initializeDelta(delta, nChanges, sz, rng)
         val newF = fitness.applyDelta(individual, delta, f)
         val comparison = fitness.compare(f, newF)
         iterationLogger.logIteration(soFar + 1, newF)

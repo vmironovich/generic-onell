@@ -26,7 +26,7 @@ trait HasDeltaOperations[@specialized(csp) ChangeIndexType] {
     * @param size the size which the delta must have.
     * @param rng the random number generator.
     */
-  def initializeDeltaWithGivenSize(delta: OrderedSet[ChangeIndexType], nChanges: ChangeIndexType, size: Int, rng: Random): Unit
+  def initializeDelta(delta: OrderedSet[ChangeIndexType], nChanges: ChangeIndexType, size: Int, rng: Random): Unit
 
   /**
     * Initializes the given delta using some default distribution law, but taking
