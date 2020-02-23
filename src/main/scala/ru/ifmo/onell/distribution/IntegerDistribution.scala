@@ -10,7 +10,7 @@ trait IntegerDistribution {
   def sample(rng: Random): Int
 
   def max(other: IntegerDistribution): IntegerDistribution = r => math.max(sample(r), other.sample(r))
-  def takeWhen(predicate: Int => Boolean): IntegerDistribution = new TakeWhen(this, predicate)
+  def filter(predicate: Int => Boolean): IntegerDistribution = new Filter(this, predicate)
 }
 
 object IntegerDistribution {
@@ -18,7 +18,7 @@ object IntegerDistribution {
 
   implicit def constant2distribution(value: Int): IntegerDistribution = constant(value)
 
-  class TakeWhen(distribution: IntegerDistribution, predicate: Int => Boolean) extends IntegerDistribution {
+  class Filter(distribution: IntegerDistribution, predicate: Int => Boolean) extends IntegerDistribution {
     @scala.annotation.tailrec
     override final def sample(rng: Random): Int = {
       val current = distribution.sample(rng)

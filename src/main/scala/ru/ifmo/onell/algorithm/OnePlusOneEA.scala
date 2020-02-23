@@ -29,7 +29,7 @@ object OnePlusOneEA {
     nChanges => BinomialDistribution(nChanges, 1.0 / nChanges).max(1)
 
   val ResamplingMutation: MutationDistributionGenerator =
-    nChanges => BinomialDistribution(nChanges, 1.0 / nChanges).takeWhen(_ > 0)
+    nChanges => BinomialDistribution(nChanges, 1.0 / nChanges).filter(_ > 0)
 }
 
 /**
