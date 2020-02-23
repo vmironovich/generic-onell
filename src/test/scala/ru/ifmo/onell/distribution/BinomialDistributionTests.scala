@@ -1,4 +1,4 @@
-package ru.ifmo.onell.util
+package ru.ifmo.onell.distribution
 
 import java.util.Random
 

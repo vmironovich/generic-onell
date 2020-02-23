@@ -1,8 +1,8 @@
-package ru.ifmo.onell.util
+package ru.ifmo.onell.distribution
 
 import java.util.Random
 
-import ru.ifmo.onell.IntegerDistribution
+import ru.ifmo.onell.util.BinomialScanner
 
 object BinomialDistribution {
   def apply(n: Long, p: Double): IntegerDistribution = rng => withScanner(n, p, rng)

@@ -7,7 +7,7 @@ import scala.{specialized => sp}
 
 import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSpecialization => fsp}
 import ru.ifmo.onell._
-import ru.ifmo.onell.util.BinomialDistribution
+import ru.ifmo.onell.distribution.{BinomialDistribution, IntegerDistribution}
 
 /**
   * This is an implementation of the "implementation-aware" (1+1) EA, which restarts mutation if zero bits are flipped.
@@ -29,7 +29,7 @@ object OnePlusOneEA {
     nChanges => BinomialDistribution(nChanges, 1.0 / nChanges).max(IntegerDistribution.constant(1))
 
   val ResamplingMutation: MutationDistributionGenerator =
-    nChanges => BinomialDistribution(nChanges, 1.0 / nChanges).skipUntil(_ > 0)
+    nChanges => BinomialDistribution(nChanges, 1.0 / nChanges).takeWhen(_ > 0)
 }
 
 /**

@@ -1,4 +1,4 @@
-package ru.ifmo.onell
+package ru.ifmo.onell.distribution
 
 import java.util.Random
 
@@ -13,10 +13,10 @@ object IntegerDistribution {
 
   implicit class Extensions(val underlying: IntegerDistribution) extends AnyVal {
     def max(other: IntegerDistribution): IntegerDistribution = r => math.max(underlying.sample(r), other.sample(r))
-    def skipUntil(predicate: Int => Boolean): IntegerDistribution = new SkipUntil(underlying, predicate)
+    def takeWhen(predicate: Int => Boolean): IntegerDistribution = new TakeWhen(underlying, predicate)
   }
 
-  private class SkipUntil(distribution: IntegerDistribution, predicate: Int => Boolean) extends IntegerDistribution {
+  private class TakeWhen(distribution: IntegerDistribution, predicate: Int => Boolean) extends IntegerDistribution {
     @tailrec
     override final def sample(rng: Random): Int = {
       val current = distribution.sample(rng)
