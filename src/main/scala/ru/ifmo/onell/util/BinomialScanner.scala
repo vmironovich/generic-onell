@@ -17,6 +17,6 @@ object BinomialScanner {
   }
 
   def apply(probability: Double): BinomialScanner = {
-    if (probability == 1) ProbabilityOneScanner else new NormalScanner(probability)
+    if (probability >= 1) ProbabilityOneScanner else new NormalScanner(probability)
   }
 }

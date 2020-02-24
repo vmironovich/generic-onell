@@ -110,32 +110,27 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
         iteration(f, newEvaluations)
       } else {
         val bestMutantFitness = runMutations(mutationPopSize, f, mutantDistance)
+        val q = constantTuning.crossoverProbabilityQuotient
         if (goodMutantStrategy == GoodMutantStrategy.SkipCrossover && fitness.compare(bestMutantFitness, f) > 0) {
           val newEvaluations = evaluationsSoFar + mutationPopSize
           fitness.applyDelta(individual, mutationBest, f).tap(nf => assert(fitness.compare(bestMutantFitness, nf) == 0))
           iterationLogger.logIteration(newEvaluations, bestMutantFitness)
           iteration(bestMutantFitness, newEvaluations)
-        } else if (mutantDistance == 1 && goodMutantStrategy == GoodMutantStrategy.DoNotSampleIdentical) {
-          // A very special case, which would enter an infinite loop if not taken care
-          // If the crossover can sample zeros, all the children are zeros, and this can be shortcut
-          // However, if it cannot, it would run forever trying to sample at least something.
+        } else if (crossoverStrength.willAlwaysSampleMaximum(lambda, mutantDistance, q) && goodMutantStrategy == GoodMutantStrategy.DoNotSampleIdentical) {
+          // A very special case, which would enter an infinite loop if not taken care.
+          // With GoodMutantStrategy.DoNotSampleIdentical,
+          // a crossover which would always sample a maximum number of bits to flip would cause an infinite loop.
           // For this reason we say specially that we don't try crossovers in this case.
-          if (crossoverStrength.isStrictlyPositive) {
-            val newEvaluations = evaluationsSoFar + mutationPopSize
-            iterationLogger.logIteration(newEvaluations, bestMutantFitness)
-            if (fitness.compare(bestMutantFitness, f) > 0) {
-              fitness.applyDelta(individual, mutationBest, f).tap(nf => assert(fitness.compare(bestMutantFitness, nf) == 0))
-              iteration(bestMutantFitness, newEvaluations)
-            } else {
-              iteration(f, newEvaluations)
-            }
+          val newEvaluations = evaluationsSoFar + mutationPopSize
+          iterationLogger.logIteration(newEvaluations, bestMutantFitness)
+          if (fitness.compare(bestMutantFitness, f) > 0) {
+            fitness.applyDelta(individual, mutationBest, f).tap(nf => assert(fitness.compare(bestMutantFitness, nf) == 0))
+            iteration(bestMutantFitness, newEvaluations)
           } else {
-            val newEvaluations = evaluationsSoFar + mutationPopSize + crossoverPopSize
-            iterationLogger.logIteration(newEvaluations, bestMutantFitness)
             iteration(f, newEvaluations)
           }
         } else {
-          val crossDistribution = crossoverStrength(lambda, mutantDistance, constantTuning.crossoverProbabilityQuotient)
+          val crossDistribution = crossoverStrength(lambda, mutantDistance, q)
           val crossEvs = runCrossover(crossoverPopSize, f, bestMutantFitness, mutantDistance, crossDistribution, aux)
 
           if (goodMutantStrategy == GoodMutantStrategy.DoNotSampleIdentical || goodMutantStrategy == GoodMutantStrategy.DoNotCountIdentical) {
@@ -206,6 +201,7 @@ object OnePlusLambdaLambdaGA {
   trait CrossoverStrength {
     def apply(lambda: Double, mutantDistance: Int, quotient: Double): IntegerDistribution
     def isStrictlyPositive: Boolean
+    def willAlwaysSampleMaximum(l: Double, d: Int, q: Double): Boolean
   }
 
   object CrossoverStrength {
@@ -213,28 +209,34 @@ object OnePlusLambdaLambdaGA {
     private[this] def bD(d: Int, q: Double): IntegerDistribution = BinomialDistribution(d, q / d)
 
     final val StandardL: CrossoverStrength = new CrossoverStrength {
-      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bL(l, d , q)
+      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bL(l, d, q)
       override def isStrictlyPositive: Boolean = false
+      override def willAlwaysSampleMaximum(l: Double, d: Int, q: Double): Boolean = q >= l
     }
     final val StandardD: CrossoverStrength = new CrossoverStrength {
       override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bD(d, q)
       override def isStrictlyPositive: Boolean = false
+      override def willAlwaysSampleMaximum(l: Double, d: Int, q: Double): Boolean = q >= d
     }
     final val ResamplingL: CrossoverStrength = new CrossoverStrength {
-      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bL(l, d , q).filter(_ > 0)
+      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bL(l, d, q).filter(_ > 0)
       override def isStrictlyPositive: Boolean = true
+      override def willAlwaysSampleMaximum(l: Double, d: Int, q: Double): Boolean = q >= l || d == 1
     }
     final val ResamplingD: CrossoverStrength = new CrossoverStrength {
       override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bD(d, q).filter(_ > 0)
       override def isStrictlyPositive: Boolean = true
+      override def willAlwaysSampleMaximum(l: Double, d: Int, q: Double): Boolean = q >= d || d == 1
     }
     final val ShiftL: CrossoverStrength = new CrossoverStrength {
-      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bL(l, d , q).max(1)
+      override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bL(l, d, q).max(1)
       override def isStrictlyPositive: Boolean = true
+      override def willAlwaysSampleMaximum(l: Double, d: Int, q: Double): Boolean = q >= l || d == 1
     }
     final val ShiftD: CrossoverStrength = new CrossoverStrength {
       override def apply(l: Double, d: Int, q: Double): IntegerDistribution = bD(d, q).max(1)
       override def isStrictlyPositive: Boolean = true
+      override def willAlwaysSampleMaximum(l: Double, d: Int, q: Double): Boolean = q >= d || d == 1
     }
   }
 
