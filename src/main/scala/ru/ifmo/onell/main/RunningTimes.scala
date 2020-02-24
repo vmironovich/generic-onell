@@ -74,15 +74,6 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private def choices(lt: Long => LambdaTuning): Seq[(String, OnePlusLambdaLambdaGA)] = Seq(
-    "Up/Def" -> new OnePlusLambdaLambdaGA(lt, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, roundUpPopulationSize),
-    "Down/Def" -> new OnePlusLambdaLambdaGA(lt, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, roundDownPopulationSize),
-    "Rnd/Def" -> new OnePlusLambdaLambdaGA(lt, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, probabilisticPopulationSize),
-    "Up/Hom" -> new OnePlusLambdaLambdaGA(lt, MutationStrength.Resampling, CrossoverStrength.ResamplingD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, roundUpPopulationSize),
-    "Down/Hom" -> new OnePlusLambdaLambdaGA(lt, MutationStrength.Resampling, CrossoverStrength.ResamplingD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, roundDownPopulationSize),
-    "Rnd/Hom" -> new OnePlusLambdaLambdaGA(lt, MutationStrength.Resampling, CrossoverStrength.ResamplingD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, probabilisticPopulationSize),
-  )
-
   private def bitsOneMaxSimple(context: Context): Unit = {
     val algorithms = Seq(
       "RLS" -> OnePlusOneEA.RLS,
