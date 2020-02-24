@@ -26,6 +26,7 @@ object RunningTimes extends Main.Module {
     "  bits:sat:99     <context>: same but starting at the distance of sqrt(n) from the end",
     "  bits:om:tuning  <context>: for OneMax with various tuning choices for the (1+(λ,λ)) GA",
     "  bits:l2d:tuning <context>: same for linear functions with random weights from [1;2]",
+    "  bits:l5d:tuning <context>: same for linear functions with random weights from [1;5]",
     "The following commands run experiments for problems on permutations:",
     "  perm:om         <context>: for the permutation flavour of OneMax",
     "The <context> arguments, all mandatory, are:",
@@ -44,7 +45,8 @@ object RunningTimes extends Main.Module {
     case "bits:sat:99" => bitsMaxSATAlmostOptimal(parseContext(args))
     case "perm:om"     => permOneMaxSimple(parseContext(args))
     case "bits:om:tuning"  => bitsOneMaxAllTuningChoices(parseContext(args))
-    case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args))
+    case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args), 2.0)
+    case "bits:l5d:tuning" => bitsLinearDoubleTunings(parseContext(args), 5.0)
   }
 
   private class Context(powers: Range, nRuns: Int, nThreads: Int, outName: String) {
@@ -132,39 +134,46 @@ object RunningTimes extends Main.Module {
     }
   }
 
+  private val tuningChoices = {
+    val lambdaStrategies = Seq("λ=8" -> fixedLambda(8) _,
+                               "λ<=n" -> defaultOneFifthLambda _,
+                               "λ<=log n" -> logCappedOneFifthLambda _)
+    val mutationStrengths = Seq("standard" -> MutationStrength.Standard,
+                                "shift" -> MutationStrength.Shift,
+                                "resampling" -> MutationStrength.Resampling)
+    val crossoverStrengths = Seq("standard on lambda" -> CrossoverStrength.StandardL,
+                                 "standard on distance" -> CrossoverStrength.StandardD,
+                                 "shift on lambda" -> CrossoverStrength.ShiftL,
+                                 "shift on distance" -> CrossoverStrength.ShiftD,
+                                 "resampling on lambda" -> CrossoverStrength.ResamplingL,
+                                 "resampling on distance" -> CrossoverStrength.ResamplingD)
+    val goodMutantStrategies = Seq("ignore" -> GoodMutantStrategy.Ignore,
+                                   "skip crossover" -> GoodMutantStrategy.SkipCrossover,
+                                   "do not count identical" -> GoodMutantStrategy.DoNotCountIdentical,
+                                   "do not sample identical" -> GoodMutantStrategy.DoNotSampleIdentical)
+    val populationSizeRoundings = Seq("round down" -> roundDownPopulationSize,
+                                      "round up" -> roundUpPopulationSize,
+                                      "probabilistic" -> probabilisticPopulationSize)
+    for {
+      (l, lambdaStrategy) <- lambdaStrategies
+      (m, mutationStrength) <- mutationStrengths
+      (c, crossoverStrength) <- crossoverStrengths
+      (g, goodMutantStrategy) <- goodMutantStrategies
+      (r, rounding) <- populationSizeRoundings
+    } yield {
+      val jsonNamePart = s""""lambda":"$l","mutation":"$m","crossover":"$c","good mutant":"$g","rounding":"$r""""
+      val algGenerator = () => new OnePlusLambdaLambdaGA(lambdaStrategy, mutationStrength, crossoverStrength,
+                                                         goodMutantStrategy, populationRounding = rounding)
+      jsonNamePart -> algGenerator
+    }
+  }
+
   private def bitsOneMaxAllTuningChoices(context: Context): Unit = {
     context.run { (scheduler, n) =>
-      val lambdaStrategies = Seq("λ=8" -> fixedLambda(8) _,
-                                 "λ<=n" -> defaultOneFifthLambda _,
-                                 "λ<=log n" -> logCappedOneFifthLambda _)
-      val mutationStrengths = Seq("standard" -> MutationStrength.Standard,
-                                  "shift" -> MutationStrength.Shift,
-                                  "resampling" -> MutationStrength.Resampling)
-      val crossoverStrengths = Seq("standard on lambda" -> CrossoverStrength.StandardL,
-                                   "standard on distance" -> CrossoverStrength.StandardD,
-                                   "shift on lambda" -> CrossoverStrength.ShiftL,
-                                   "shift on distance" -> CrossoverStrength.ShiftD,
-                                   "resampling on lambda" -> CrossoverStrength.ResamplingL,
-                                   "resampling on distance" -> CrossoverStrength.ResamplingD)
-      val goodMutantStrategies = Seq("ignore" -> GoodMutantStrategy.Ignore,
-                                     "skip crossover" -> GoodMutantStrategy.SkipCrossover,
-                                     "do not count identical" -> GoodMutantStrategy.DoNotCountIdentical,
-                                     "do not sample identical" -> GoodMutantStrategy.DoNotSampleIdentical)
-      val populationSizeRoundings = Seq("round down" -> roundDownPopulationSize,
-                                        "round up" -> roundUpPopulationSize,
-                                        "probabilistic" -> probabilisticPopulationSize)
-      for {
-        (l, lambdaStrategy) <- lambdaStrategies
-        (m, mutationStrength) <- mutationStrengths
-        (c, crossoverStrength) <- crossoverStrengths
-        (g, goodMutantStrategy) <- goodMutantStrategies
-        (r, rounding) <- populationSizeRoundings
-      } {
+      for ((jsonName, algGenerator) <- tuningChoices) {
         scheduler addTask {
-          val algorithm = new OnePlusLambdaLambdaGA(lambdaStrategy, mutationStrength, crossoverStrength,
-                                                    goodMutantStrategy, populationRounding = rounding)
-          val time = algorithm.optimize(new OneMax(n))
-          s"""{"n":$n,"irace":0,"lambda":"$l","mutation":"$m","crossover":"$c","good mutant":"$g","rounding":"$r","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          val time = algGenerator().optimize(new OneMax(n))
+          s"""{"n":$n,"irace":0,$jsonName,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
@@ -190,14 +199,13 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private def bitsLinearDoubleTunings(context: Context): Unit = {
-    val algorithms = choices(logCappedOneFifthLambda)
+  private def bitsLinearDoubleTunings(context: Context, maxWeight: Double): Unit = {
     val seeder = new Random(314252354)
     context.run { (scheduler, n) =>
-      for ((name, alg) <- algorithms) {
+      for ((jsonName, algGenerator) <- tuningChoices) {
         scheduler addTask {
-          val time = alg.optimize(new LinearRandomDoubleWeights(n, 2.0, seeder.nextLong()))
-          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          val time = algGenerator().optimize(new LinearRandomDoubleWeights(n, maxWeight, seeder.nextLong()))
+          s"""{"n":$n,"irace":0,$jsonName,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
