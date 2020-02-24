@@ -27,6 +27,7 @@ object RunningTimes extends Main.Module {
     "  bits:om:tuning  <context>: for OneMax with various tuning choices for the (1+(λ,λ)) GA",
     "  bits:l2d:tuning <context>: same for linear functions with random weights from [1;2]",
     "  bits:l5d:tuning <context>: same for linear functions with random weights from [1;5]",
+    "  bits:sat:tuning <context>: same for the MAX-SAT problem with logarithmic density",
     "The following commands run experiments for problems on permutations:",
     "  perm:om         <context>: for the permutation flavour of OneMax",
     "The <context> arguments, all mandatory, are:",
@@ -47,6 +48,7 @@ object RunningTimes extends Main.Module {
     case "bits:om:tuning"  => bitsOneMaxAllTuningChoices(parseContext(args))
     case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args), 2.0)
     case "bits:l5d:tuning" => bitsLinearDoubleTunings(parseContext(args), 5.0)
+    case "bits:sat:tuning" => bitsMaxSatTunings(parseContext(args))
   }
 
   private class Context(powers: Range, nRuns: Int, nThreads: Int, outName: String) {
@@ -233,6 +235,19 @@ object RunningTimes extends Main.Module {
           val time = alg.optimize(new RandomPlanted3SAT(n, nClauses, RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
           val consumed = (System.nanoTime() - t0) * 1e-9
           s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n},"wall-clock time":$consumed}"""
+        }
+      }
+    }
+  }
+
+  private def bitsMaxSatTunings(context: Context): Unit = {
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      val nClauses = (4 * n * math.log(n)).toInt
+      for ((jsonName, algGenerator) <- tuningChoices) {
+        scheduler addTask {
+          val time = algGenerator().optimize(new RandomPlanted3SAT(n, nClauses, RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
+          s"""{"n":$n,"irace":0,$jsonName,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
