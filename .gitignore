@@ -27,3 +27,6 @@ hs_err_pid*
 /target/
 /project/project/
 /project/target/
+
+# Auxiliary files which irace creates
+.irace/irace.Rdata
