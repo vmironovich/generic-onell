@@ -2,7 +2,7 @@ package ru.ifmo.onell
 
 import java.io.PrintStream
 
-import ru.ifmo.onell.main.{FixedBudget, FixedTarget, LambdaColorMap, LambdaTraces, RunningTimes}
+import ru.ifmo.onell.main._
 
 object Main {
   trait Module {
@@ -12,7 +12,7 @@ object Main {
     def moduleMain(args: Array[String]): Unit
   }
 
-  private val modules = Seq(Help, RunningTimes, FixedBudget, FixedTarget, LambdaColorMap, LambdaTraces)
+  private val modules = Seq(Help, RunningTimes, FixedBudget, FixedTarget, IRaceClient, LambdaColorMap, LambdaTraces)
 
   private def printCommandList(stream: PrintStream, prefix: String): Unit = {
     val moduleNameWidth = modules.view.map(_.name.length).max
