@@ -1,15 +1,10 @@
 package ru.ifmo.onell.main
 
-import java.io.{BufferedReader, BufferedWriter, IOException}
-import java.nio.file.{Files, Paths}
-
-import scala.util.Using
-
+import ru.ifmo.onell._
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, OneMax, RandomPlanted3SAT}
 import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSpecialization => fsp}
-import ru.ifmo.onell._
 
 object IRaceClient extends Main.Module {
   override def name: String = "irace"
@@ -54,39 +49,7 @@ object IRaceClient extends Main.Module {
     "    --generator easy|hard: the clause generator to use",
   )
 
-  override def moduleMain(args: Array[String]): Unit = {
-    val input = args.getOption("--input")
-    val output = args.getOption("--output")
-    Using.resources(Files.newBufferedReader(Paths.get(input)), Files.newBufferedWriter(Paths.get(output)))(run(output))
-  }
-
-  private def run(outputName: String)(input: BufferedReader, output: BufferedWriter): Unit = runImpl(input, output, outputName)
-
-  @scala.annotation.tailrec
-  private def runImpl(input: BufferedReader, output: BufferedWriter, outputName: String): Unit = {
-    val line = input.readLine()
-    if (line != null && line != "end") {
-      val result = runOne(line.split(" ").filter(_.trim.nonEmpty))
-      println(s"[debug] Computed result '$result'")
-      output.write(result)
-      output.newLine()
-      val newOutput = try {
-        output.flush()
-        output
-      } catch {
-        case io: IOException =>
-          println(s"[error] ${io.getMessage}")
-          output.close()
-          val newOutput = Files.newBufferedWriter(Paths.get(outputName))
-          newOutput.write(result)
-          newOutput.newLine()
-          newOutput.flush()
-          newOutput
-      }
-
-      runImpl(input, newOutput, outputName)
-    }
-  }
+  override def moduleMain(args: Array[String]): Unit = println(runOne(args))
 
   private def runOne(command: Array[String]): String = try {
     val optimizer = parseOptimizer(command.getOption("--algorithm"), command)
@@ -173,9 +136,9 @@ object IRaceClient extends Main.Module {
                              (optimizer: Optimizer, maxEvaluations: Long, problem: Fitness[I, F, C])
                              (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I]): String = {
     try {
-      optimizer.optimize(problem, new SimpleTerminationLogger[F](maxEvaluations)).toString
+      (optimizer.optimize(problem, new SimpleTerminationLogger[F](maxEvaluations)).toDouble / problem.problemSize).toString
     } catch {
-      case EvaluationExceededException => (maxEvaluations + 1).toString
+      case EvaluationExceededException => Double.PositiveInfinity.toString
     }
   }
 
