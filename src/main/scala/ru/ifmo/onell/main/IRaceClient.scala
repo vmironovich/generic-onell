@@ -31,7 +31,6 @@ object IRaceClient extends Main.Module {
     "                              the mutants which are good enough to compete with parents",
     "    --mutation-q   <double>: the additional multiple to the standard mutation probability",
     "    --crossover-q  <double>: the additional multiple to the standard crossover probability",
-    "    --mutation-popsize-q  <double>: the additional multiple to the standard mutation population size",
     "    --crossover-popsize-q <double>: the additional multiple to the standard crossover population size",
     "    --popsize-rounding:   round-up|round-down|probabilistic: the strategy to compute integer population sizes",
     "",
@@ -49,9 +48,20 @@ object IRaceClient extends Main.Module {
     "    --generator easy|hard: the clause generator to use",
   )
 
-  override def moduleMain(args: Array[String]): Unit = println(runOne(args))
+  override def moduleMain(args: Array[String]): Unit = try {
+    val nRuns = args.getOption("--average-over").toInt
+    var sum = 0.0
+    var idx = 0
+    while (idx < nRuns && !sum.isInfinite) {
+      sum += runOne(args)
+      idx += 1
+    }
+    println(sum / nRuns)
+  } catch {
+    case e: Throwable => println(e.toString)
+  }
 
-  private def runOne(command: Array[String]): String = try {
+  private def runOne(command: Array[String]): Double = {
     val optimizer = parseOptimizer(command.getOption("--algorithm"), command)
     val maxEvaluations = command.getOption("--max-evaluations").toLong
     command.getOption("--problem") match {
@@ -71,8 +81,6 @@ object IRaceClient extends Main.Module {
                                                              command.getOption("--seed").toLong))
       case _ => throw new IllegalArgumentException(s"Unknown problem name '${command(1)}'. Supported names: OneMax, Linear, MaxSat'")
     }
-  } catch {
-    case e: Throwable => e.toString
   }
 
   private def parseOptimizer(optimizerName: String, args: Array[String]): Optimizer = {
@@ -119,8 +127,7 @@ object IRaceClient extends Main.Module {
         constantTuning = ConstantTuning(
           mutationProbabilityQuotient = args.getOption("--mutation-q").toDouble,
           crossoverProbabilityQuotient = args.getOption("--crossover-q").toDouble,
-          firstPopulationSizeQuotient = args.getOption("--mutation-popsize-q").toDouble,
-          secondPopulationSizeQuotient = args.getOption("--crossover-popsize-q").toDouble
+          crossoverPopulationSizeQuotient = args.getOption("--crossover-popsize-q").toDouble
         ),
         populationRounding = args.getOption("--popsize-rounding") match {
           case "round-up" => roundUpPopulationSize
@@ -134,11 +141,11 @@ object IRaceClient extends Main.Module {
 
   private def runUntilOptimum[I, @specialized(fsp) F, @specialized(csp) C]
                              (optimizer: Optimizer, maxEvaluations: Long, problem: Fitness[I, F, C])
-                             (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I]): String = {
+                             (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I]): Double = {
     try {
-      (optimizer.optimize(problem, new SimpleTerminationLogger[F](maxEvaluations)).toDouble / problem.problemSize).toString
+      optimizer.optimize(problem, new SimpleTerminationLogger[F](maxEvaluations)).toDouble / problem.problemSize
     } catch {
-      case EvaluationExceededException => Double.PositiveInfinity.toString
+      case EvaluationExceededException => Double.PositiveInfinity
     }
   }
 

@@ -1,6 +1,1 @@
---problem OneMax --n  100  --max-evaluations  1500
---problem OneMax --n  300  --max-evaluations  4500
---problem OneMax --n 1000  --max-evaluations 15000
---problem OneMax --n  100  --max-evaluations  1500
---problem OneMax --n  300  --max-evaluations  4500
---problem OneMax --n 1000  --max-evaluations 15000
+--problem OneMax --n 1000  --max-evaluations 20000

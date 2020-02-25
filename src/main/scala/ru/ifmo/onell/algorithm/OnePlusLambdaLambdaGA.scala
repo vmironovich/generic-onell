@@ -98,8 +98,8 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
     def iteration(f: F, evaluationsSoFar: Long): Long = if (fitness.isOptimalFitness(f)) evaluationsSoFar else {
       val lambda = lambdaP.lambda(rng)
 
-      val mutationPopSize = math.max(1, populationRounding(lambda * constantTuning.firstPopulationSizeQuotient, rng))
-      val crossoverPopSize = math.max(1, populationRounding(lambda * constantTuning.secondPopulationSizeQuotient, rng))
+      val mutationPopSize = math.max(1, populationRounding(lambda, rng))
+      val crossoverPopSize = math.max(1, populationRounding(lambda * constantTuning.crossoverPopulationSizeQuotient, rng))
 
       val mutantDistance = mutationStrength(nChangesL, constantTuning.mutationProbabilityQuotient * lambda).sample(rng)
       var newEvaluations = evaluationsSoFar
@@ -320,10 +320,9 @@ object OnePlusLambdaLambdaGA {
 
   case class ConstantTuning(mutationProbabilityQuotient: Double,
                             crossoverProbabilityQuotient: Double,
-                            firstPopulationSizeQuotient: Double,
-                            secondPopulationSizeQuotient: Double)
+                            crossoverPopulationSizeQuotient: Double)
 
-  final val defaultTuning = ConstantTuning(1.0, 1.0, 1.0, 1.0)
+  final val defaultTuning = ConstantTuning(1.0, 1.0, 1.0)
   final val OneFifthOnSuccess = 1 / 1.5
   final val OneFifthOnFailure = math.pow(1.5, 0.25)
 
