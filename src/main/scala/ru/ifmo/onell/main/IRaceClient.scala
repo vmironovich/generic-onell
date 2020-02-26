@@ -1,5 +1,7 @@
 package ru.ifmo.onell.main
 
+import java.net.{DatagramPacket, DatagramSocket}
+
 import ru.ifmo.onell._
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
@@ -8,11 +10,13 @@ import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSp
 
 object IRaceClient extends Main.Module {
   override def name: String = "irace"
-  override def shortDescription: String = "Runs a single computation for irace"
+  override def shortDescription: String = "Runs computations for irace"
   override def longDescription: Seq[String] = Seq(
     "Executes the given algorithm for the given problem, as configured by the irace parameter tuning program.",
     "The command-line parameters have the following syntax:",
-    "  --algorithm <algorithm> --problem <problem> <parameters>",
+    "  --run-as-server <port>: listens on UDP socket, port <port>, for packets formatted as below",
+    "  --algorithm <algorithm> --problem <problem> <parameters>: directly run the algorithm on the problem,",
+    "                                                            which can also be sent through a socket",
     "",
     "The parameters may be related to either the algorithm or the problem.",
     "Common parameters:",
@@ -48,7 +52,40 @@ object IRaceClient extends Main.Module {
     "    --generator easy|hard: the clause generator to use",
   )
 
-  override def moduleMain(args: Array[String]): Unit = try {
+  override def moduleMain(args: Array[String]): Unit = {
+    if (args.contains("--run-as-server")) {
+      runServer(args.getOption("--run-as-server").toInt)
+    } else {
+      println(runMany(args))
+    }
+  }
+
+  private def runServer(port: Int): Unit = {
+    val socket = new DatagramSocket(port)
+    val array = new Array[Byte](10240)
+    val packet = new DatagramPacket(array, array.length)
+    try {
+      receiveCommandsUntilTheEnd(socket, array, packet)
+    } finally {
+      socket.close()
+    }
+  }
+
+  @scala.annotation.tailrec
+  private def receiveCommandsUntilTheEnd(socket: DatagramSocket, theArray: Array[Byte], packet: DatagramPacket): Unit = {
+    packet.setData(theArray)
+    socket.setSendBufferSize(10240)
+    socket.setReceiveBufferSize(10240)
+    socket.receive(packet)
+    val text = new String(packet.getData, packet.getOffset, packet.getLength)
+    val result = runMany(text.split(" "))
+    val resultBytes = result.getBytes
+    packet.setData(resultBytes)
+    socket.send(packet)
+    receiveCommandsUntilTheEnd(socket, theArray, packet)
+  }
+
+  private def runMany(args: Array[String]): String = try {
     val nRuns = args.getOption("--average-over").toInt
     var sum = 0.0
     var idx = 0
@@ -56,9 +93,9 @@ object IRaceClient extends Main.Module {
       sum += runOne(args)
       idx += 1
     }
-    println(sum / nRuns)
+    (sum / nRuns).toString
   } catch {
-    case e: Throwable => println(e.toString)
+    case e: Throwable => e.toString
   }
 
   private def runOne(command: Array[String]): Double = {
