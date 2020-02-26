@@ -1,6 +1,6 @@
 #!/bin/bash
 
-COMMON_OPTIONS="--port 8806 --average-over 25 --algorithm oll"
+COMMON_OPTIONS="--port $3 --average-over 25 --algorithm oll"
 IRACE_EXEC=~/R/x86_64-pc-linux-gnu-library/3.4/irace/bin/irace
 SCENARIO="$2"
 
