@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     address.sin_family = AF_INET;
     address.sin_port = htons((unsigned) port_number);
     address.sin_addr.s_addr = INADDR_ANY; // local connections only, sort of
-    if (connect(socket_id, &address, sizeof(address))) {
+    if (connect(socket_id, (struct sockaddr *) &address, sizeof(address))) {
         int error = errno;
         printf("Could not connect socket! Error code: %d (%s)\n", error, strerror(error));
         close(socket_id);
