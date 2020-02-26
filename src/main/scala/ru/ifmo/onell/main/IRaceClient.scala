@@ -14,7 +14,7 @@ object IRaceClient extends Main.Module {
   override def longDescription: Seq[String] = Seq(
     "Executes the given algorithm for the given problem, as configured by the irace parameter tuning program.",
     "The command-line parameters have the following syntax:",
-    "  --run-as-server <port>: listens on UDP socket, port <port>, for packets formatted as below",
+    "  --run-as-server <port1>,<port2>,...: listens on UDP sockets on given ports for packets formatted as below",
     "  --algorithm <algorithm> --problem <problem> <parameters>: directly run the algorithm on the problem,",
     "                                                            which can also be sent through a socket",
     "",
@@ -54,7 +54,13 @@ object IRaceClient extends Main.Module {
 
   override def moduleMain(args: Array[String]): Unit = {
     if (args.contains("--run-as-server")) {
-      runServer(args.getOption("--run-as-server").toInt)
+      val ports = args.getOption("--run-as-server").split(',').map(_.toInt)
+      for (port <- ports) {
+        val thread = new Thread(() => runServer(port))
+        thread.setName(s"worker-$port")
+        println(s"Starting thread ${thread.getName} to listen on port $port")
+        thread.start()
+      }
     } else {
       println(runMany(args))
     }
