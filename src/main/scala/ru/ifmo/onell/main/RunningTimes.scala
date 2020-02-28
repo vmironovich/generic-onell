@@ -54,6 +54,8 @@ object RunningTimes extends Main.Module {
     case "bits:l5d:tuning" => bitsLinearDoubleTunings(parseContext(args), 5.0)
     case "bits:sat:tuning" => bitsMaxSatTunings(parseContext(args))
     case "bits:om:tuning*" => bitsOneMaxIRacedTuningChoices(parseContext(args), args.getOption("--files"))
+    case "bits:l2d:tuning*" => bitsLinearDoubleIRacedTuningChoices(parseContext(args), 2.0, args.getOption("--files"))
+    case "bits:l5d:tuning*" => bitsLinearDoubleIRacedTuningChoices(parseContext(args), 5.0, args.getOption("--files"))
   }
 
   private class Context(powers: Range, nRuns: Int, nThreads: Int, outName: String) {
@@ -225,6 +227,28 @@ object RunningTimes extends Main.Module {
         scheduler addTask {
           val time = algGenerator().optimize(new LinearRandomDoubleWeights(n, maxWeight, seeder.nextLong()))
           s"""{"n":$n,"irace":0,$jsonName,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsLinearDoubleIRacedTuningChoices(context: Context, maxWeight: Double, fileList: String): Unit = {
+    val seeder = new Random(314252354)
+    val allLines = fileList
+      .split(',')
+      .flatMap(filename => Files
+        .readAllLines(Paths.get(filename))
+        .asScala
+        .filter(_.nonEmpty)
+        .toIndexedSeq)
+    context.run { (scheduler, n) =>
+      for (line <- allLines) {
+        scheduler addTask {
+          val args = line.split(" ").filter(_.nonEmpty)
+          val name = IRaceClient.parseOptimizerJson("oll", args)
+          val algorithm = IRaceClient.parseOptimizer("oll", args)
+          val time = algorithm.optimize(new LinearRandomDoubleWeights(n, maxWeight, seeder.nextLong()))
+          s"""{"n":$n,"irace":1,$name,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
