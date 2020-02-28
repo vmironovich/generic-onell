@@ -17,9 +17,8 @@ for LAMBDA_TUNING in $1; do
                     for POPSIZE_ROUNDING in round-up round-down probabilistic; do
                         MEANINGFUL_OPTIONS="--lambda-tuning $LAMBDA_TUNING $LAMBDA_ADDITIONAL --mutation-strength-alg $MUTATION_STRENGTH --crossover-strength-alg $CROSSOVER_STRENGTH --crossover-strength-base $CROSSOVER_BASE --good-mutant-strategy $MUTANT_STRATEGY --popsize-rounding $POPSIZE_ROUNDING"
                         echo "$COMMON_OPTIONS $MEANINGFUL_OPTIONS" > params.extra
-                        echo "$MEANINGFUL_OPTIONS"
-                        $IRACE_EXEC --scenario $SCENARIO | tail -n 4
-                        echo ""
+                        echo -n "$MEANINGFUL_OPTIONS"
+                        $IRACE_EXEC --scenario $SCENARIO | sed '1,/# Best configurations as commandlines/d' | head -n 1
                     done
                 done
             done
