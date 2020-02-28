@@ -126,57 +126,95 @@ object IRaceClient extends Main.Module {
     }
   }
 
-  private def parseOptimizer(optimizerName: String, args: Array[String]): Optimizer = {
+  private case class ParameterAndJson[T](value: T, json: String)
+
+  private def parseLambdaTuning(args: Array[String]): ParameterAndJson[Long => LambdaTuning] = {
+    args.getOption("--lambda-tuning") match {
+      case "linear" => ParameterAndJson(oneFifthLambda(
+        onSuccess = args.getOption("--tuning-success").toDouble,
+        onFailure = args.getOption("--tuning-failure").toDouble,
+        threshold = size => size
+      ), """"lambda":"λ<=n"""")
+      case "log" => ParameterAndJson(oneFifthLambda(
+        onSuccess = args.getOption("--tuning-success").toDouble,
+        onFailure = args.getOption("--tuning-failure").toDouble,
+        threshold = size => 2 * math.log(size + 1)
+      ), """"lambda":"λ<=log n"""")
+      case "fixed" =>
+        val value = args.getOption("--lambda").toInt
+        ParameterAndJson(fixedLambda(value), s""""lambda":"λ=$value"""")
+    }
+  }
+
+  private def parseMutationStrength(args: Array[String]): ParameterAndJson[MutationStrength] = {
+    args.getOption("--mutation-strength-alg") match {
+      case "standard"   => ParameterAndJson(MutationStrength.Standard, """"mutation":"standard"""")
+      case "shift"      => ParameterAndJson(MutationStrength.Shift, """"mutation":"shift"""")
+      case "resampling" => ParameterAndJson(MutationStrength.Resampling, """"mutation":"resampling"""")
+    }
+  }
+
+  private def parseCrossoverStrength(args: Array[String]): ParameterAndJson[CrossoverStrength] = {
+    args.getOption("--crossover-strength-alg") match {
+      case "standard" => args.getOption("--crossover-strength-base") match {
+        case "lambda"   => ParameterAndJson(CrossoverStrength.StandardL, """"crossover":"standard on lambda"""")
+        case "distance" => ParameterAndJson(CrossoverStrength.StandardD, """"crossover":"standard on distance"""")
+      }
+      case "shift" => args.getOption("--crossover-strength-base") match {
+        case "lambda"   => ParameterAndJson(CrossoverStrength.ShiftL, """"crossover":"shift on lambda"""")
+        case "distance" => ParameterAndJson(CrossoverStrength.ShiftD, """"crossover":"shift on distance"""")
+      }
+      case "resampling" => args.getOption("--crossover-strength-base") match {
+        case "lambda"   => ParameterAndJson(CrossoverStrength.ResamplingL, """"crossover":"resampling on lambda"""")
+        case "distance" => ParameterAndJson(CrossoverStrength.ResamplingD, """"crossover":"resampling on distance"""")
+      }
+    }
+  }
+
+  private def parseGoodMutantStrategy(args: Array[String]): ParameterAndJson[GoodMutantStrategy] = {
+    args.getOption("--good-mutant-strategy") match {
+      case "ignore" => ParameterAndJson(GoodMutantStrategy.Ignore, """"good mutant":"ignore"""")
+      case "skip-crossover" => ParameterAndJson(GoodMutantStrategy.SkipCrossover, """"good mutant":"skip crossover"""")
+      case "do-not-count" => ParameterAndJson(GoodMutantStrategy.DoNotCountIdentical, """"good mutant":"do not count identical"""")
+      case "do-not-sample" => ParameterAndJson(GoodMutantStrategy.DoNotSampleIdentical, """"good mutant":"do not sample identical"""")
+    }
+  }
+
+  private def parseRounding(args: Array[String]): ParameterAndJson[PopulationSizeRounding] = {
+    args.getOption("--popsize-rounding") match {
+      case "round-up" => ParameterAndJson(roundUpPopulationSize, """"rounding":"round up"""")
+      case "round-down" => ParameterAndJson(roundDownPopulationSize, """"rounding":"round down"""")
+      case "probabilistic" => ParameterAndJson(probabilisticPopulationSize, """"rounding":"probabilistic"""")
+    }
+  }
+
+  def parseOptimizerJson(optimizerName: String, args: Array[String]): String = {
+    s"""${
+      parseLambdaTuning(args).json
+    },${
+      parseMutationStrength(args).json
+    },${
+      parseCrossoverStrength(args).json
+    },${
+      parseGoodMutantStrategy(args).json
+    },${
+      parseRounding(args).json
+    }"""
+  }
+
+  def parseOptimizer(optimizerName: String, args: Array[String]): Optimizer = {
     optimizerName match {
       case "oll" => new OnePlusLambdaLambdaGA(
-        lambdaTuning = args.getOption("--lambda-tuning") match {
-          case "linear" => oneFifthLambda(
-            onSuccess = args.getOption("--tuning-success").toDouble,
-            onFailure = args.getOption("--tuning-failure").toDouble,
-            threshold = size => size
-          )
-          case "log" => oneFifthLambda(
-            onSuccess = args.getOption("--tuning-success").toDouble,
-            onFailure = args.getOption("--tuning-failure").toDouble,
-            threshold = size => 2 * math.log(size + 1)
-          )
-          case "fixed" => fixedLambda(args.getOption("--lambda").toDouble)
-        },
-        mutationStrength = args.getOption("--mutation-strength-alg") match {
-          case "standard"   => MutationStrength.Standard
-          case "shift"      => MutationStrength.Shift
-          case "resampling" => MutationStrength.Resampling
-        },
-        crossoverStrength = args.getOption("--crossover-strength-alg") match {
-          case "standard" => args.getOption("--crossover-strength-base") match {
-            case "lambda"   => CrossoverStrength.StandardL
-            case "distance" => CrossoverStrength.StandardD
-          }
-          case "shift" => args.getOption("--crossover-strength-base") match {
-            case "lambda"   => CrossoverStrength.ShiftL
-            case "distance" => CrossoverStrength.ShiftD
-          }
-          case "resampling" => args.getOption("--crossover-strength-base") match {
-            case "lambda"   => CrossoverStrength.ResamplingL
-            case "distance" => CrossoverStrength.ResamplingD
-          }
-        },
-        goodMutantStrategy = args.getOption("--good-mutant-strategy") match {
-          case "ignore" => GoodMutantStrategy.Ignore
-          case "skip-crossover" => GoodMutantStrategy.SkipCrossover
-          case "do-not-count" => GoodMutantStrategy.DoNotCountIdentical
-          case "do-not-sample" => GoodMutantStrategy.DoNotSampleIdentical
-        },
+        lambdaTuning = parseLambdaTuning(args).value,
+        mutationStrength = parseMutationStrength(args).value,
+        crossoverStrength = parseCrossoverStrength(args).value,
+        goodMutantStrategy = parseGoodMutantStrategy(args).value,
         constantTuning = ConstantTuning(
           mutationProbabilityQuotient = args.getOption("--mutation-q").toDouble,
           crossoverProbabilityQuotient = args.getOption("--crossover-q").toDouble,
           crossoverPopulationSizeQuotient = args.getOption("--crossover-popsize-q").toDouble
         ),
-        populationRounding = args.getOption("--popsize-rounding") match {
-          case "round-up" => roundUpPopulationSize
-          case "round-down" => roundDownPopulationSize
-          case "probabilistic" => probabilisticPopulationSize
-        }
+        populationRounding = parseRounding(args).value
       )
       case _ => throw new IllegalArgumentException(s"Unknown optimizer name '$optimizerName'. Supported names: oll")
     }
