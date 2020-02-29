@@ -1,5 +1,5 @@
 maxExperiments=1000
 targetRunner="target-runner.sh"
 trainInstancesDir=""
-trainInstancesFile="instances.list.onemax"
+trainInstancesFile="instances.list.w1"
 parameterFile="params-static.description"
