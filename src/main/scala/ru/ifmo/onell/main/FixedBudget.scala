@@ -148,15 +148,12 @@ object FixedBudget extends Main.Module {
     (kp.tightnessRatio, kp.problemSize, kp.nConstraints)
 
   private def runMultiDimensionalKnapsack(): Unit = {
-    println("% Finding linear relaxations. This should be instant, but unfortunately not. Please wait...")
-    val knapsacksAndSolutions = MultiDimensionalKnapsack.ChuBeaselyProblems.map(k => (k, k.linearRelaxation))
+    val knapsacksAndSolutions = MultiDimensionalKnapsack.ChuBeaselyProblems
     for ((name, optGen) <- optimizers) {
       print("\\addplot+ coordinates {")
-      for ((desc, subset) <- knapsacksAndSolutions.groupBy(k => getDescriptor(k._1))) {
+      for ((desc, subset) <- knapsacksAndSolutions.groupBy(getDescriptor)) {
         val runsForEach = 10
-        val results = subset map {
-          case (p, l) => IndexedSeq.fill(runsForEach)(runKnapsack(optGen, p)).sum / l
-        }
+        val results = subset.map(p => IndexedSeq.fill(runsForEach)(runKnapsack(optGen, p)).sum / p.linearRelaxation)
         val average = results.sum / runsForEach / subset.size
         print(s"({$desc},$average)")
       }
