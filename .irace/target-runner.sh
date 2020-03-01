@@ -1,3 +1,4 @@
 #!/bin/bash
 
-./target-sender.exe "$@" `cat params.extra` --seed $3
+# shellcheck disable=SC2046
+./target-sender.exe "$@" $(cat params.extra) --seed "$3"

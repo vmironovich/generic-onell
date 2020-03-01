@@ -18,7 +18,7 @@ for LAMBDA_TUNING in $1; do
                         MEANINGFUL_OPTIONS="--lambda-tuning $LAMBDA_TUNING $LAMBDA_ADDITIONAL --mutation-strength-alg $MUTATION_STRENGTH --crossover-strength-alg $CROSSOVER_STRENGTH --crossover-strength-base $CROSSOVER_BASE --good-mutant-strategy $MUTANT_STRATEGY --popsize-rounding $POPSIZE_ROUNDING"
                         echo "$COMMON_OPTIONS $MEANINGFUL_OPTIONS" > params.extra
                         echo -n "$MEANINGFUL_OPTIONS "
-                        $IRACE_EXEC --scenario $SCENARIO | sed '1,/# Best configurations as commandlines/d' | head -n 1
+                        $IRACE_EXEC --scenario "$SCENARIO" | sed '1,/# Best configurations as commandlines/d' | head -n 1
                     done
                 done
             done
