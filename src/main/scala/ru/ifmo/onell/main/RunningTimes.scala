@@ -30,8 +30,11 @@ object RunningTimes extends Main.Module {
     "  bits:l2d:tuning <context>: same for linear functions with random weights from [1;2]",
     "  bits:l5d:tuning <context>: same for linear functions with random weights from [1;5]",
     "  bits:sat:tuning <context>: same for the MAX-SAT problem with logarithmic density",
-    "  bits:om:tuning* <context> <file1>,<file2>,...: for OneMax with various tuning choices",
+    "  bits:om:tuning*  <context> <file1>,<file2>,...: for OneMax with various tuning choices",
     "                                                 for the (1+(λ,λ)) GA with constants tuned by irace",
+    "  bits:l2d:tuning* <context> <file1>,<file2>,...: same for linear functions with random weights from [1;2]",
+    "  bits:l5d:tuning* <context> <file1>,<file2>,...: same for linear functions with random weights from [1;5]",
+    "  bits:sat:tuning* <context> <file1>,<file2>,...: same for the MAX-SAT problem with logarithmic density",
     "The following commands run experiments for problems on permutations:",
     "  perm:om         <context>: for the permutation flavour of OneMax",
     "The <context> arguments, all mandatory, are:",
@@ -56,6 +59,7 @@ object RunningTimes extends Main.Module {
     case "bits:om:tuning*" => bitsOneMaxIRacedTuningChoices(parseContext(args), args.getOption("--files"))
     case "bits:l2d:tuning*" => bitsLinearDoubleIRacedTuningChoices(parseContext(args), 2.0, args.getOption("--files"))
     case "bits:l5d:tuning*" => bitsLinearDoubleIRacedTuningChoices(parseContext(args), 5.0, args.getOption("--files"))
+    case "bits:sat:tuning*" => bitsMaxSatIRacedTuningChoices(parseContext(args), args.getOption("--files"))
   }
 
   private class Context(powers: Range, nRuns: Int, nThreads: Int, outName: String) {
@@ -289,6 +293,29 @@ object RunningTimes extends Main.Module {
         scheduler addTask {
           val time = algGenerator().optimize(new RandomPlanted3SAT(n, nClauses, RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
           s"""{"n":$n,"irace":0,$jsonName,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsMaxSatIRacedTuningChoices(context: Context, fileList: String): Unit = {
+    val seeder = new Random(314252354)
+    val allLines = fileList
+      .split(',')
+      .flatMap(filename => Files
+        .readAllLines(Paths.get(filename))
+        .asScala
+        .filter(_.nonEmpty)
+        .toIndexedSeq)
+    context.run { (scheduler, n) =>
+      val nClauses = (4 * n * math.log(n)).toInt
+      for (line <- allLines) {
+        scheduler addTask {
+          val args = line.split(" ").filter(_.nonEmpty)
+          val name = IRaceClient.parseOptimizerJson("oll", args)
+          val algorithm = IRaceClient.parseOptimizer("oll", args)
+          val time = algorithm.optimize(new RandomPlanted3SAT(n, nClauses, RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
+          s"""{"n":$n,"irace":1,$name,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
