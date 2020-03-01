@@ -21,6 +21,7 @@ object IRaceClient extends Main.Module {
     "The parameters may be related to either the algorithm or the problem.",
     "Common parameters:",
     "  --max-evaluations <long>: the limit on the number of evaluations",
+    "  --mode evaluations|fitness|minus-fitness: tell what to report, the number of evaluations, or the best fitness",
     "",
     "Supported algorithms:",
     "  oll: the (1+(λ,λ)) genetic algorithm. Supported parameters:",
@@ -107,14 +108,19 @@ object IRaceClient extends Main.Module {
   private def runOne(command: Array[String]): Double = {
     val optimizer = parseOptimizer(command.getOption("--algorithm"), command)
     val maxEvaluations = command.getOption("--max-evaluations").toLong
+    val mode = command.getOption("--mode") match {
+      case "evaluations" => ReportEvaluationsUntilOptimum
+      case "fitness" => ReportBestFitnessUnderLimits
+      case "minus-fitness" => ReportMinusFitnessUnderLimits
+    }
     command.getOption("--problem") match {
-      case "OneMax" => runUntilOptimum(optimizer, maxEvaluations,
+      case "OneMax" => runUntilOptimum(optimizer, maxEvaluations, mode,
                                        new OneMax(command.getOption("--n").toInt))
-      case "Linear" => runUntilOptimum(optimizer, maxEvaluations,
+      case "Linear" => runUntilOptimum(optimizer, maxEvaluations, mode,
                                        new LinearRandomDoubleWeights(command.getOption("--n").toInt,
                                                                      command.getOption("--max-weight").toDouble,
                                                                      command.getOption("--seed").toLong))
-      case "MaxSat" => runUntilOptimum(optimizer, maxEvaluations,
+      case "MaxSat" => runUntilOptimum(optimizer, maxEvaluations, mode,
                                        new RandomPlanted3SAT(command.getOption("--n").toInt,
                                                              command.getOption("--clauses").toInt,
                                                              command.getOption("--generator") match {
@@ -221,12 +227,22 @@ object IRaceClient extends Main.Module {
   }
 
   private def runUntilOptimum[I, @specialized(fsp) F, @specialized(csp) C]
-                             (optimizer: Optimizer, maxEvaluations: Long, problem: Fitness[I, F, C])
-                             (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I]): Double = {
+                             (optimizer: Optimizer, maxEvaluations: Long, reportMode: ReportMode, problem: Fitness[I, F, C])
+                             (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I], fitness2double: F => Double): Double = {
+    val logger = new SimpleTerminationLogger[F](maxEvaluations, (l, r) => problem.compare(l, r) < 0)
     try {
-      optimizer.optimize(problem, new SimpleTerminationLogger[F](maxEvaluations)).toDouble / problem.problemSize
+      val normalizedIterations = optimizer.optimize(problem, logger).toDouble / problem.problemSize
+      reportMode match {
+        case ReportEvaluationsUntilOptimum => normalizedIterations
+        case ReportBestFitnessUnderLimits => logger.getBestFitness
+        case ReportMinusFitnessUnderLimits => -logger.getBestFitness
+      }
     } catch {
-      case EvaluationExceededException => Double.PositiveInfinity
+      case EvaluationExceededException => reportMode match {
+        case ReportEvaluationsUntilOptimum => Double.PositiveInfinity
+        case ReportBestFitnessUnderLimits => logger.getBestFitness
+        case ReportMinusFitnessUnderLimits => -logger.getBestFitness
+      }
     }
   }
 
@@ -239,11 +255,24 @@ object IRaceClient extends Main.Module {
     }
   }
 
-  private class SimpleTerminationLogger[@specialized(fsp) F](maxEvaluations: Long) extends IterationLogger[F] {
-    override def logIteration(evaluations: Long, fitness: F): Unit =
+  private class SimpleTerminationLogger[@specialized(fsp) F](maxEvaluations: Long, isLess: (F, F) => Boolean) extends IterationLogger[F] {
+    private var bestFitness: F = _
+    private var bestFitnessInitialized: Boolean = false
+    override def logIteration(evaluations: Long, fitness: F): Unit = {
+      if (!bestFitnessInitialized || isLess(fitness, bestFitness)) {
+        bestFitness = fitness
+        bestFitnessInitialized = true
+      }
       if (evaluations > maxEvaluations)
         throw EvaluationExceededException
+    }
+    def getBestFitness: F = bestFitness
   }
 
   private object EvaluationExceededException extends RuntimeException
+
+  private sealed trait ReportMode
+  private case object ReportEvaluationsUntilOptimum extends ReportMode
+  private case object ReportBestFitnessUnderLimits extends ReportMode
+  private case object ReportMinusFitnessUnderLimits extends ReportMode
 }
