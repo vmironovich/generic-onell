@@ -22,10 +22,14 @@ object RunningTimes extends Main.Module {
   override def longDescription: Seq[String] = Seq(
     "The following commands run experiments for problems on bit strings:",
     "  bits:om         <context>: for OneMax",
-    "  bits:om:99      <context>: for OneMax starting at the distance of sqrt(n) from the end",
+    "  bits:om:sqrt    <context>: same but starting at the distance of sqrt(n) from the end",
+    "  bits:om:log     <context>: same but starting at the distance of log(n+1) from the end",
+    "  bits:om:lin     <context>: same but starting at the distance of q*n from the end, q is passed with --q option",
     "  bits:l2d        <context>: for linear functions with random weights from [1;2]",
     "  bits:sat        <context>: for the MAX-SAT problem with logarithmic density",
-    "  bits:sat:99     <context>: same but starting at the distance of sqrt(n) from the end",
+    "  bits:sat:sqrt   <context>: same but starting at the distance of sqrt(n) from the end",
+    "  bits:sat:log    <context>: same but starting at the distance of log(n+1) from the end",
+    "  bits:sat:lin    <context>: same but starting at the distance of q*n from the end, q is passed with --q option",
     "  bits:om:tuning  <context>: for OneMax with various tuning choices for the (1+(λ,λ)) GA",
     "  bits:l2d:tuning <context>: same for linear functions with random weights from [1;2]",
     "  bits:l5d:tuning <context>: same for linear functions with random weights from [1;5]",
@@ -46,12 +50,14 @@ object RunningTimes extends Main.Module {
   )
 
   override def moduleMain(args: Array[String]): Unit = args(0) match {
-    case "bits:om"     => bitsOneMaxSimple(parseContext(args))
-    case "bits:om:99"  => bitsOneMaxAlmostOptimal(parseContext(args))
-    case "bits:l2d"    => bitsLinearDoubleSimple(parseContext(args))
-    case "bits:sat"    => bitsMaxSATSimple(parseContext(args))
-    case "bits:sat:99" => bitsMaxSATAlmostOptimal(parseContext(args))
-    case "perm:om"     => permOneMaxSimple(parseContext(args))
+    case "bits:om"         => bitsOneMaxSimple(parseContext(args))
+    case "bits:om:sqrt"    => bitsOneMaxAlmostOptimal(parseContext(args), n => math.sqrt(n))
+    case "bits:om:log"     => bitsOneMaxAlmostOptimal(parseContext(args), n => math.log(n + 1))
+    case "bits:l2d"        => bitsLinearDoubleSimple(parseContext(args))
+    case "bits:sat"        => bitsMaxSATSimple(parseContext(args))
+    case "bits:sat:sqrt"   => bitsMaxSATAlmostOptimal(parseContext(args), n => math.sqrt(n))
+    case "bits:sat:log"    => bitsMaxSATAlmostOptimal(parseContext(args), n => math.log(n + 1))
+    case "perm:om"         => permOneMaxSimple(parseContext(args))
     case "bits:om:tuning"  => bitsOneMaxAllTuningChoices(parseContext(args))
     case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args), 2.0)
     case "bits:l5d:tuning" => bitsLinearDoubleTunings(parseContext(args), 5.0)
@@ -60,6 +66,12 @@ object RunningTimes extends Main.Module {
     case "bits:l2d:tuning*" => bitsLinearDoubleIRacedTuningChoices(parseContext(args), 2.0, args.getOption("--files"))
     case "bits:l5d:tuning*" => bitsLinearDoubleIRacedTuningChoices(parseContext(args), 5.0, args.getOption("--files"))
     case "bits:sat:tuning*" => bitsMaxSatIRacedTuningChoices(parseContext(args), args.getOption("--files"))
+    case "bits:om:lin" =>
+      val q = args.getOption("--q").toDouble
+      bitsOneMaxAlmostOptimal(parseContext(args), n => n * q)
+    case "bits:sat:lin" =>
+      val q = args.getOption("--q").toDouble
+      bitsMaxSATAlmostOptimal(parseContext(args), n => n * q)
   }
 
   private class Context(powers: Range, nRuns: Int, nThreads: Int, outName: String) {
@@ -113,8 +125,8 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private def bitsOneMaxAlmostOptimal(context: Context): Unit = {
-    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = StartFromSqrtN
+  private def bitsOneMaxAlmostOptimal(context: Context, start: Int => Double): Unit = {
+    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = new StartFromDistance(start)
 
     val algorithms = Seq(
       "RLS" -> OnePlusOneEA.RLS,
@@ -132,7 +144,7 @@ object RunningTimes extends Main.Module {
       for ((name, alg) <- algorithms) {
         scheduler addTask {
           val time = alg.optimize(new OneMax(n))(indOps = almostOptimalBitStringOps, deltaOps = implicitly)
-          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"expected initial distance":${start(n)},"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
@@ -321,8 +333,8 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private def bitsMaxSATAlmostOptimal(context: Context): Unit = {
-    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = StartFromSqrtN
+  private def bitsMaxSATAlmostOptimal(context: Context, start: Int => Double): Unit = {
+    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = new StartFromDistance(start)
 
     val algorithms = Seq(
       ("RLS", Int.MaxValue, OnePlusOneEA.RLS),
@@ -343,7 +355,7 @@ object RunningTimes extends Main.Module {
           scheduler addTask {
             val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt,
                                                           RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
-            s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+            s"""{"n":$n,"algorithm":"$name","runtime":$time,"expected initial distance":${start(n)},"runtime over n":${time.toDouble / n}}"""
           }
         }
       }
@@ -381,14 +393,15 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private object StartFromSqrtN extends HasIndividualOperations[Array[Boolean]] {
+  private class StartFromDistance(start: Int => Double) extends HasIndividualOperations[Array[Boolean]] {
     override def createStorage(problemSize: Int): Array[Boolean] = new Array(problemSize)
     override def initializeRandomly(individual: Array[Boolean], rng: ThreadLocalRandom): Unit = {
-      val distance = math.sqrt(individual.length).toInt
+      val distance = start(individual.length)
+      val probabilityOfZero = distance / individual.length
       var i = individual.length
       while (i > 0) {
         i -= 1
-        individual(i) = rng.nextInt(distance) != 0
+        individual(i) = rng.nextDouble() >= probabilityOfZero
       }
     }
   }
