@@ -1,0 +1,1 @@
+--problem MaxSat --n 50 --clauses 213 --generator hard --max-evaluations 10000 --mode minus-fitness
