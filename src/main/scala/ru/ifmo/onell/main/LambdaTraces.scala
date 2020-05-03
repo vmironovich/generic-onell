@@ -85,19 +85,23 @@ object LambdaTraces extends Main.Module {
 
   private def collectTraces(n: Int, runs: Int, weight: Int, filePrefix: String): Unit = {
     val roundings = Seq(roundDownPopulationSize -> "down", roundUpPopulationSize -> "up", probabilisticPopulationSize -> "rnd")
-    val crossovers = Seq(defaultCrossoverStrength -> "def", homogeneousCrossoverStrength -> "hom")
-    val practices = Seq(true -> "aware", false -> "unaware")
-    for ((rounding, roundingName) <- roundings) {
-      for ((crossover, crossoverName) <- crossovers) {
-        for ((practice, practiceName) <- practices) {
-          collectTraces(gen => new OnePlusLambdaLambdaGA(gen,
-                                                         populationRounding = rounding,
-                                                         crossoverStrength = crossover,
-                                                         bePracticeAware = practice),
-                        n, runs, weight,
-                        s"$filePrefix-$roundingName-$crossoverName-$practiceName.tex")
-        }
-      }
+    val mutations = Seq(MutationStrength.Standard -> "std", MutationStrength.Resampling -> "res", MutationStrength.Shift -> "shf")
+    val crossovers = Seq(CrossoverStrength.StandardD -> "stdD", CrossoverStrength.StandardL -> "stdL",
+                         CrossoverStrength.ResamplingD -> "resD", CrossoverStrength.ResamplingL -> "resL",
+                         CrossoverStrength.ShiftD -> "shfD", CrossoverStrength.ShiftL -> "shfL")
+    val goodMutants = Seq(GoodMutantStrategy.Ignore -> "ignore", GoodMutantStrategy.SkipCrossover -> "skip",
+                          GoodMutantStrategy.DoNotCountIdentical -> "notcount", GoodMutantStrategy.DoNotSampleIdentical -> "notsample")
+    for ((rounding, roundingName) <- roundings;
+         (mutation, mutationName) <- mutations;
+         (crossover, crossoverName) <- crossovers;
+         (goodMutant, goodMutantName) <- goodMutants) {
+      collectTraces(gen => new OnePlusLambdaLambdaGA(gen,
+                                                     mutationStrength = mutation,
+                                                     crossoverStrength = crossover,
+                                                     goodMutantStrategy = goodMutant,
+                                                     populationRounding = rounding),
+                    n, runs, weight,
+                    s"$filePrefix-$roundingName-$mutationName-$crossoverName-$goodMutantName.tex")
     }
   }
 

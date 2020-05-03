@@ -157,19 +157,23 @@ object LambdaColorMap extends Main.Module {
 
   private def collect3DPlots(n: Int, runs: Int, lambdaPower: Double, weight: Int, filePrefix: String): Unit = {
     val roundings = Seq(roundDownPopulationSize -> "down", roundUpPopulationSize -> "up", probabilisticPopulationSize -> "rnd")
-    val crossovers = Seq(defaultCrossoverStrength -> "def", homogeneousCrossoverStrength -> "hom")
-    val practices = Seq(true -> "aware", false -> "unaware")
-    for ((rounding, roundingName) <- roundings) {
-      for ((crossover, crossoverName) <- crossovers) {
-        for ((practice, practiceName) <- practices) {
-          collect3DPlots(lambda => new OnePlusLambdaLambdaGA(fixedLambda(lambda),
-                                                             populationRounding = rounding,
-                                                             crossoverStrength = crossover,
-                                                             bePracticeAware = practice),
-                         n, runs, lambdaPower, weight,
-                         s"$filePrefix-$roundingName-$crossoverName-$practiceName")
-        }
-      }
+    val mutations = Seq(MutationStrength.Standard -> "std", MutationStrength.Resampling -> "res", MutationStrength.Shift -> "shf")
+    val crossovers = Seq(CrossoverStrength.StandardD -> "stdD", CrossoverStrength.StandardL -> "stdL",
+                         CrossoverStrength.ResamplingD -> "resD", CrossoverStrength.ResamplingL -> "resL",
+                         CrossoverStrength.ShiftD -> "shfD", CrossoverStrength.ShiftL -> "shfL")
+    val goodMutants = Seq(GoodMutantStrategy.Ignore -> "ignore", GoodMutantStrategy.SkipCrossover -> "skip",
+                          GoodMutantStrategy.DoNotCountIdentical -> "notcount", GoodMutantStrategy.DoNotSampleIdentical -> "notsample")
+    for ((rounding, roundingName) <- roundings;
+         (mutation, mutationName) <- mutations;
+         (crossover, crossoverName) <- crossovers;
+         (goodMutant, goodMutantName) <- goodMutants) {
+      collect3DPlots(lambda => new OnePlusLambdaLambdaGA(lambdaTuning = fixedLambda(lambda),
+                                                         mutationStrength = mutation,
+                                                         crossoverStrength = crossover,
+                                                         goodMutantStrategy = goodMutant,
+                                                         populationRounding = rounding),
+                     n, runs, lambdaPower, weight,
+                     s"$filePrefix-$roundingName-$mutationName-$crossoverName-$goodMutantName")
     }
   }
 
@@ -184,7 +188,11 @@ object LambdaColorMap extends Main.Module {
 
         for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
           val fun = new OneMaxPerm(n)
-          val oll = new OnePlusLambdaLambdaGA(fixedLambda(lambda), populationRounding = probabilisticPopulationSize)
+          val oll = new OnePlusLambdaLambdaGA(fixedLambda(lambda),
+                                              mutationStrength = MutationStrength.Resampling,
+                                              crossoverStrength = CrossoverStrength.ResamplingL,
+                                              goodMutantStrategy = GoodMutantStrategy.DoNotCountIdentical,
+                                              populationRounding = probabilisticPopulationSize)
           val logger = new HammingImprovementStatistics(n)
 
           def newCallable(): Callable[Unit] = () => oll.optimize(fun, new PermImprovementCollector(logger))

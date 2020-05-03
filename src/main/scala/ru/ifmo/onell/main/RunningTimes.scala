@@ -1,14 +1,16 @@
 package ru.ifmo.onell.main
 
 import java.io.PrintWriter
+import java.nio.file.{Files, Paths}
 import java.util.Random
 import java.util.concurrent.ThreadLocalRandom
 
+import scala.jdk.CollectionConverters._
 import scala.util.Using
 
 import ru.ifmo.onell.{HasIndividualOperations, Main}
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
-import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA, RLS}
+import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA}
 import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
 import ru.ifmo.onell.util.par.{Executor, Multiplexer, ParallelExecutor, SequentialExecutor}
 
@@ -30,6 +32,13 @@ object RunningTimes extends Main.Module {
     "  bits:sat:lin    <context>: same but starting at the distance of q*n from the end, q is passed with --q option",
     "  bits:om:tuning  <context>: for OneMax with various tuning choices for the (1+(λ,λ)) GA",
     "  bits:l2d:tuning <context>: same for linear functions with random weights from [1;2]",
+    "  bits:l5d:tuning <context>: same for linear functions with random weights from [1;5]",
+    "  bits:sat:tuning <context>: same for the MAX-SAT problem with logarithmic density",
+    "  bits:om:tuning*  <context> <file1>,<file2>,...: for OneMax with various tuning choices",
+    "                                                 for the (1+(λ,λ)) GA with constants tuned by irace",
+    "  bits:l2d:tuning* <context> <file1>,<file2>,...: same for linear functions with random weights from [1;2]",
+    "  bits:l5d:tuning* <context> <file1>,<file2>,...: same for linear functions with random weights from [1;5]",
+    "  bits:sat:tuning* <context> <file1>,<file2>,...: same for the MAX-SAT problem with logarithmic density",
     "The following commands run experiments for problems on permutations:",
     "  perm:om         <context>: for the permutation flavour of OneMax",
     "The <context> arguments, all mandatory, are:",
@@ -49,8 +58,14 @@ object RunningTimes extends Main.Module {
     case "bits:sat:sqrt"   => bitsMaxSATAlmostOptimal(parseContext(args), n => math.sqrt(n))
     case "bits:sat:log"    => bitsMaxSATAlmostOptimal(parseContext(args), n => math.log(n + 1))
     case "perm:om"         => permOneMaxSimple(parseContext(args))
-    case "bits:om:tuning"  => bitsOneMaxTunings(parseContext(args))
-    case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args))
+    case "bits:om:tuning"  => bitsOneMaxAllTuningChoices(parseContext(args))
+    case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args), 2.0)
+    case "bits:l5d:tuning" => bitsLinearDoubleTunings(parseContext(args), 5.0)
+    case "bits:sat:tuning" => bitsMaxSatTunings(parseContext(args))
+    case "bits:om:tuning*" => bitsOneMaxIRacedTuningChoices(parseContext(args), args.getOption("--files"))
+    case "bits:l2d:tuning*" => bitsLinearDoubleIRacedTuningChoices(parseContext(args), 2.0, args.getOption("--files"))
+    case "bits:l5d:tuning*" => bitsLinearDoubleIRacedTuningChoices(parseContext(args), 5.0, args.getOption("--files"))
+    case "bits:sat:tuning*" => bitsMaxSatIRacedTuningChoices(parseContext(args), args.getOption("--files"))
     case "bits:om:lin" =>
       val q = args.getOption("--q").toDouble
       bitsOneMaxAlmostOptimal(parseContext(args), n => n * q)
@@ -82,31 +97,22 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private def choices(lt: Long => LambdaTuning): Seq[(String, OnePlusLambdaLambdaGA)] = Seq(
-    "Up/Def" -> new OnePlusLambdaLambdaGA(lt, defaultTuning, roundUpPopulationSize, defaultCrossoverStrength),
-    "Down/Def" -> new OnePlusLambdaLambdaGA(lt, defaultTuning, roundDownPopulationSize, defaultCrossoverStrength),
-    "Rnd/Def" -> new OnePlusLambdaLambdaGA(lt, defaultTuning, probabilisticPopulationSize, defaultCrossoverStrength),
-    "Up/Hom" -> new OnePlusLambdaLambdaGA(lt, defaultTuning, roundUpPopulationSize, homogeneousCrossoverStrength),
-    "Down/Hom" -> new OnePlusLambdaLambdaGA(lt, defaultTuning, roundDownPopulationSize, homogeneousCrossoverStrength),
-    "Rnd/Hom" -> new OnePlusLambdaLambdaGA(lt, defaultTuning, probabilisticPopulationSize, homogeneousCrossoverStrength),
-  )
-
   private def bitsOneMaxSimple(context: Context): Unit = {
     val algorithms = Seq(
-      "RLS" -> RLS,
-      "(1+1) EA" -> OnePlusOneEA.PracticeAware,
-      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
-      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda),
-      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1)),
-      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3)),
-      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5)),
-      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7)),
-      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9)),
-      "(1+(λ,λ)) GA, λ=6" -> new OnePlusLambdaLambdaGA(fixedLambda(6)),
-      "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8)),
-      "(1+(λ,λ)) GA, λ=10" -> new OnePlusLambdaLambdaGA(fixedLambda(10)),
-      "(1+(λ,λ)) GA, λ=12" -> new OnePlusLambdaLambdaGA(fixedLambda(12)),
-      "(1+(λ,λ)) GA, λ=fixed optimal" -> new OnePlusLambdaLambdaGA(fixedLogTowerLambda),
+      "RLS" -> OnePlusOneEA.RLS,
+      "(1+1) EA" -> OnePlusOneEA.Resampling,
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ=6" -> new OnePlusLambdaLambdaGA(fixedLambda(6), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ=10" -> new OnePlusLambdaLambdaGA(fixedLambda(10), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ=12" -> new OnePlusLambdaLambdaGA(fixedLambda(12), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ=fixed optimal" -> new OnePlusLambdaLambdaGA(fixedLogTowerLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
     )
 
     context.run { (scheduler, n) =>
@@ -123,15 +129,15 @@ object RunningTimes extends Main.Module {
     implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = new StartFromDistance(start)
 
     val algorithms = Seq(
-      "RLS" -> RLS,
-      "(1+1) EA" -> OnePlusOneEA.PracticeAware,
-      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
-      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda),
-      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1)),
-      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3)),
-      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5)),
-      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7)),
-      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9)),
+      "RLS" -> OnePlusOneEA.RLS,
+      "(1+1) EA" -> OnePlusOneEA.Resampling,
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
     )
 
     context.run { (scheduler, n) =>
@@ -144,13 +150,67 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private def bitsOneMaxTunings(context: Context): Unit = {
-    val algorithms = choices(defaultOneFifthLambda)
+  private val tuningChoices = {
+    val lambdaStrategies = Seq("λ=8" -> fixedLambda(8) _,
+                               "λ<=n" -> defaultOneFifthLambda _,
+                               "λ<=log n" -> logCappedOneFifthLambda _)
+    val mutationStrengths = Seq("standard" -> MutationStrength.Standard,
+                                "shift" -> MutationStrength.Shift,
+                                "resampling" -> MutationStrength.Resampling)
+    val crossoverStrengths = Seq("standard on lambda" -> CrossoverStrength.StandardL,
+                                 "standard on distance" -> CrossoverStrength.StandardD,
+                                 "shift on lambda" -> CrossoverStrength.ShiftL,
+                                 "shift on distance" -> CrossoverStrength.ShiftD,
+                                 "resampling on lambda" -> CrossoverStrength.ResamplingL,
+                                 "resampling on distance" -> CrossoverStrength.ResamplingD)
+    val goodMutantStrategies = Seq("ignore" -> GoodMutantStrategy.Ignore,
+                                   "skip crossover" -> GoodMutantStrategy.SkipCrossover,
+                                   "do not count identical" -> GoodMutantStrategy.DoNotCountIdentical,
+                                   "do not sample identical" -> GoodMutantStrategy.DoNotSampleIdentical)
+    val populationSizeRoundings = Seq("round down" -> roundDownPopulationSize,
+                                      "round up" -> roundUpPopulationSize,
+                                      "probabilistic" -> probabilisticPopulationSize)
+    for {
+      (l, lambdaStrategy) <- lambdaStrategies
+      (m, mutationStrength) <- mutationStrengths
+      (c, crossoverStrength) <- crossoverStrengths
+      (g, goodMutantStrategy) <- goodMutantStrategies
+      (r, rounding) <- populationSizeRoundings
+    } yield {
+      val jsonNamePart = s""""lambda":"$l","mutation":"$m","crossover":"$c","good mutant":"$g","rounding":"$r""""
+      val algGenerator = () => new OnePlusLambdaLambdaGA(lambdaStrategy, mutationStrength, crossoverStrength,
+                                                         goodMutantStrategy, populationRounding = rounding)
+      jsonNamePart -> algGenerator
+    }
+  }
+
+  private def bitsOneMaxAllTuningChoices(context: Context): Unit = {
     context.run { (scheduler, n) =>
-      for ((name, alg) <- algorithms) {
+      for ((jsonName, algGenerator) <- tuningChoices) {
         scheduler addTask {
-          val time = alg.optimize(new OneMax(n))
-          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          val time = algGenerator().optimize(new OneMax(n))
+          s"""{"n":$n,"irace":0,$jsonName,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsOneMaxIRacedTuningChoices(context: Context, fileList: String): Unit = {
+    val allLines = fileList
+      .split(',')
+      .flatMap(filename => Files
+        .readAllLines(Paths.get(filename))
+        .asScala
+        .filter(_.nonEmpty)
+        .toIndexedSeq)
+    context.run { (scheduler, n) =>
+      for (line <- allLines) {
+        scheduler addTask {
+          val args = line.split(" ").filter(_.nonEmpty)
+          val name = IRaceClient.parseOptimizerJson("oll", args)
+          val algorithm = IRaceClient.parseOptimizer("oll", args)
+          val time = algorithm.optimize(new OneMax(n))
+          s"""{"n":$n,"irace":1,$name,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
@@ -158,11 +218,11 @@ object RunningTimes extends Main.Module {
 
   private def bitsLinearDoubleSimple(context: Context): Unit = {
     val algorithms = Seq(
-      "RLS" -> RLS,
-      "(1+1) EA" -> OnePlusOneEA.PracticeAware,
-      "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8)),
-      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
-      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5)),
+      "RLS" -> OnePlusOneEA.RLS,
+      "(1+1) EA" -> OnePlusOneEA.Resampling,
+      "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
     )
 
     val seeder = new Random(314252354)
@@ -176,14 +236,35 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private def bitsLinearDoubleTunings(context: Context): Unit = {
-    val algorithms = choices(logCappedOneFifthLambda)
+  private def bitsLinearDoubleTunings(context: Context, maxWeight: Double): Unit = {
     val seeder = new Random(314252354)
     context.run { (scheduler, n) =>
-      for ((name, alg) <- algorithms) {
+      for ((jsonName, algGenerator) <- tuningChoices) {
         scheduler addTask {
-          val time = alg.optimize(new LinearRandomDoubleWeights(n, 2.0, seeder.nextLong()))
-          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          val time = algGenerator().optimize(new LinearRandomDoubleWeights(n, maxWeight, seeder.nextLong()))
+          s"""{"n":$n,"irace":0,$jsonName,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsLinearDoubleIRacedTuningChoices(context: Context, maxWeight: Double, fileList: String): Unit = {
+    val seeder = new Random(314252354)
+    val allLines = fileList
+      .split(',')
+      .flatMap(filename => Files
+        .readAllLines(Paths.get(filename))
+        .asScala
+        .filter(_.nonEmpty)
+        .toIndexedSeq)
+    context.run { (scheduler, n) =>
+      for (line <- allLines) {
+        scheduler addTask {
+          val args = line.split(" ").filter(_.nonEmpty)
+          val name = IRaceClient.parseOptimizerJson("oll", args)
+          val algorithm = IRaceClient.parseOptimizer("oll", args)
+          val time = algorithm.optimize(new LinearRandomDoubleWeights(n, maxWeight, seeder.nextLong()))
+          s"""{"n":$n,"irace":1,$name,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
@@ -191,15 +272,15 @@ object RunningTimes extends Main.Module {
 
   private def bitsMaxSATSimple(context: Context): Unit = {
     val algorithms = Seq(
-      "RLS" -> RLS,
-      "(1+1) EA" -> OnePlusOneEA.PracticeAware,
-      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda),
-      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda),
-      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1)),
-      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3)),
-      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5)),
-      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7)),
-      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9)),
+      "RLS" -> OnePlusOneEA.RLS,
+      "(1+1) EA" -> OnePlusOneEA.Resampling,
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
     )
 
     val seeder = new Random(314252354)
@@ -216,19 +297,55 @@ object RunningTimes extends Main.Module {
     }
   }
 
+  private def bitsMaxSatTunings(context: Context): Unit = {
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      val nClauses = (4 * n * math.log(n)).toInt
+      for ((jsonName, algGenerator) <- tuningChoices) {
+        scheduler addTask {
+          val time = algGenerator().optimize(new RandomPlanted3SAT(n, nClauses, RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
+          s"""{"n":$n,"irace":0,$jsonName,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsMaxSatIRacedTuningChoices(context: Context, fileList: String): Unit = {
+    val seeder = new Random(314252354)
+    val allLines = fileList
+      .split(',')
+      .flatMap(filename => Files
+        .readAllLines(Paths.get(filename))
+        .asScala
+        .filter(_.nonEmpty)
+        .toIndexedSeq)
+    context.run { (scheduler, n) =>
+      val nClauses = (4 * n * math.log(n)).toInt
+      for (line <- allLines) {
+        scheduler addTask {
+          val args = line.split(" ").filter(_.nonEmpty)
+          val name = IRaceClient.parseOptimizerJson("oll", args)
+          val algorithm = IRaceClient.parseOptimizer("oll", args)
+          val time = algorithm.optimize(new RandomPlanted3SAT(n, nClauses, RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
+          s"""{"n":$n,"irace":1,$name,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
   private def bitsMaxSATAlmostOptimal(context: Context, start: Int => Double): Unit = {
     implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = new StartFromDistance(start)
 
     val algorithms = Seq(
-      ("RLS", Int.MaxValue, RLS),
-      ("(1+1) EA", Int.MaxValue, OnePlusOneEA.PracticeAware),
-      ("(1+(λ,λ)) GA, λ<=n", 16384, new OnePlusLambdaLambdaGA(defaultOneFifthLambda)),
-      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda)),
-      ("(1+(λ,λ)) GA, λ~pow(2.1)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.1))),
-      ("(1+(λ,λ)) GA, λ~pow(2.3)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.3))),
-      ("(1+(λ,λ)) GA, λ~pow(2.5)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.5))),
-      ("(1+(λ,λ)) GA, λ~pow(2.7)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.7))),
-      ("(1+(λ,λ)) GA, λ~pow(2.9)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.9))),
+      ("RLS", Int.MaxValue, OnePlusOneEA.RLS),
+      ("(1+1) EA", Int.MaxValue, OnePlusOneEA.Resampling),
+      ("(1+(λ,λ)) GA, λ<=n", 16384, new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)),
+      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)),
+      ("(1+(λ,λ)) GA, λ~pow(2.1)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.1), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)),
+      ("(1+(λ,λ)) GA, λ~pow(2.3)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.3), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)),
+      ("(1+(λ,λ)) GA, λ~pow(2.5)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.5), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)),
+      ("(1+(λ,λ)) GA, λ~pow(2.7)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.7), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)),
+      ("(1+(λ,λ)) GA, λ~pow(2.9)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.9), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)),
     )
 
     val seeder = new Random(314252354)
@@ -247,12 +364,12 @@ object RunningTimes extends Main.Module {
 
   private def permOneMaxSimple(context: Context): Unit = {
     val algorithms = Seq(
-      ("RLS", Int.MaxValue, RLS),
-      ("(1+1) EA", Int.MaxValue, OnePlusOneEA.PracticeAware),
-      ("(1+(λ,λ)) GA, λ=10", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLambda(10))),
-      ("(1+(λ,λ)) GA, λ=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLogLambda)),
-      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda)),
-      ("(1+(λ,λ)) GA, λ<=n", 256, new OnePlusLambdaLambdaGA(defaultOneFifthLambda)),
+      ("RLS", Int.MaxValue, OnePlusOneEA.RLS),
+      ("(1+1) EA", Int.MaxValue, OnePlusOneEA.Resampling),
+      ("(1+(λ,λ)) GA, λ=10", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLambda(10), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)),
+      ("(1+(λ,λ)) GA, λ=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLogLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)),
+      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)),
+      ("(1+(λ,λ)) GA, λ<=n", 256, new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical)),
     )
 
     context.run { (scheduler, n) =>

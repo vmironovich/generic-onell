@@ -1,0 +1,1 @@
+--problem MaxSat --n 128 --clauses 2500 --generator easy --max-evaluations 5000 --mode evaluations

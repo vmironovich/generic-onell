@@ -7,25 +7,46 @@ import scala.{specialized => sp}
 
 import ru.ifmo.onell.util.Specialization.{changeSpecialization => csp, fitnessSpecialization => fsp}
 import ru.ifmo.onell._
+import ru.ifmo.onell.distribution.{BinomialDistribution, IntegerDistribution}
 
 /**
-  * This is an implementation of the "implementation-aware" (1+1) EA, which restarts mutation if zero bits are flipped.
-  *
-  * For mutation it uses the representation-dependent default mutation rate, which amounts to =1 change in expectation.
+  * This is the companion class to `OnePlusOneEA` containing several variations of the (1+1) EA
+  * with most popular mutations, including RLS.
   */
 object OnePlusOneEA {
-  val PracticeAware = new OnePlusOneEA(bePracticeAware = true)
-  val PracticeUnaware = new OnePlusOneEA(bePracticeAware = false)
+  /**
+    * This is randomized local search, whose mutation always flips one randomly chosen bit.
+    */
+  final val RLS = new OnePlusOneEA(_ => 1)
+
+  /**
+    * This is the standard (1+1) EA, which flips every bit independently with probability 1/n.
+    */
+  final val Standard = new OnePlusOneEA(n => BinomialDistribution(n, 1.0 / n))
+
+  /**
+    * This is the (1+1) EA which flips every bit independently with probability 1/n,
+    * but if zero bits were flipped, it flips one randomly chosen bit.
+    *
+    * From the literature, this flavour is known as "shift mutation".
+    */
+  final val Shift = new OnePlusOneEA(n => BinomialDistribution(n, 1.0 / n).max(1))
+
+  /**
+    * This is the (1+1) EA which flips every bit independently with probability 1/n,
+    * but if zero bits were flipped, it continues sampling.
+    *
+    * From the literature, this flavour is known as "resampling mutation".
+    */
+  final val Resampling = new OnePlusOneEA(n => BinomialDistribution(n, 1.0 / n).filter(_ > 0))
 }
 
 /**
-  * This is the (1+1) EA, which can or cannot be made "practice aware".
-  * @param bePracticeAware whether this instance should be practice-aware
+  * This is the (1+1) EA parameterized with a distribution on the number of bits to be flipped.
   */
-class OnePlusOneEA(bePracticeAware: Boolean) extends Optimizer {
+class OnePlusOneEA(distributionGenerator: Long => IntegerDistribution) extends Optimizer {
   final def optimize[I, @sp(fsp) F, @sp(csp) C]
-    (fitness: Fitness[I, F, C],
-     iterationLogger: IterationLogger[F])
+    (fitness: Fitness[I, F, C], iterationLogger: IterationLogger[F])
     (implicit deltaOps: HasDeltaOperations[C], indOps: HasIndividualOperations[I]): Long =
   {
     val problemSize = fitness.problemSize
@@ -34,17 +55,16 @@ class OnePlusOneEA(bePracticeAware: Boolean) extends Optimizer {
     val delta = deltaOps.createStorage(nChanges)
     val rng = Random.current()
 
+    val mutationDistribution = distributionGenerator(fitness.changeIndexTypeToLong(nChanges))
+
     @tailrec
     def iterate(f: F, soFar: Long): Long = if (fitness.isOptimalFitness(f)) soFar else {
-      val sz = deltaOps.initializeDeltaWithDefaultSize(delta, nChanges, 1, rng)
+      val sz = mutationDistribution.sample(rng)
       if (sz == 0) {
-        if (bePracticeAware) {
-          iterate(f, soFar)
-        } else {
-          iterationLogger.logIteration(soFar + 1, f)
-          iterate(f, soFar + 1)
-        }
+        iterationLogger.logIteration(soFar + 1, f)
+        iterate(f, soFar + 1)
       } else {
+        deltaOps.initializeDelta(delta, nChanges, sz, rng)
         val newF = fitness.applyDelta(individual, delta, f)
         val comparison = fitness.compare(f, newF)
         iterationLogger.logIteration(soFar + 1, newF)

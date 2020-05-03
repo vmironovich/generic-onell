@@ -64,12 +64,24 @@ object FixedBudget extends Main.Module {
   }
 
   private val optimizers: IndexedSeq[(String, TerminationConditionTracker[Int] => Optimizer)] = IndexedSeq(
-    ("(1+1) EA aware", _ => OnePlusOneEA.PracticeAware),
-    ("(1+1) EA unaware", _ => OnePlusOneEA.PracticeUnaware),
-    ("uncapped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda), bePracticeAware = false)),
-    ("uncapped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda), bePracticeAware = true)),
-    ("capped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda), bePracticeAware = false)),
-    ("capped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda), bePracticeAware = true)),
+    ("(1+1) EA aware", _ => OnePlusOneEA.Resampling),
+    ("(1+1) EA unaware", _ => OnePlusOneEA.Standard),
+    ("uncapped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda),
+                                                        mutationStrength = MutationStrength.Standard,
+                                                        crossoverStrength = CrossoverStrength.StandardL,
+                                                        goodMutantStrategy = GoodMutantStrategy.Ignore)),
+    ("uncapped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda),
+                                                      mutationStrength = MutationStrength.Resampling,
+                                                      crossoverStrength = CrossoverStrength.ResamplingL,
+                                                      goodMutantStrategy = GoodMutantStrategy.DoNotCountIdentical)),
+    ("capped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda),
+                                                      mutationStrength = MutationStrength.Standard,
+                                                      crossoverStrength = CrossoverStrength.StandardL,
+                                                      goodMutantStrategy = GoodMutantStrategy.Ignore)),
+    ("capped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda),
+                                                    mutationStrength = MutationStrength.Resampling,
+                                                    crossoverStrength = CrossoverStrength.ResamplingL,
+                                                    goodMutantStrategy = GoodMutantStrategy.DoNotCountIdentical)),
   )
 
   private def runHardSat(problemSizes: Seq[Int]): Unit = {
@@ -136,15 +148,12 @@ object FixedBudget extends Main.Module {
     (kp.tightnessRatio, kp.problemSize, kp.nConstraints)
 
   private def runMultiDimensionalKnapsack(): Unit = {
-    println("% Finding linear relaxations. This should be instant, but unfortunately not. Please wait...")
-    val knapsacksAndSolutions = MultiDimensionalKnapsack.ChuBeaselyProblems.map(k => (k, k.linearRelaxation))
+    val knapsacksAndSolutions = MultiDimensionalKnapsack.ChuBeaselyProblems
     for ((name, optGen) <- optimizers) {
       print("\\addplot+ coordinates {")
-      for ((desc, subset) <- knapsacksAndSolutions.groupBy(k => getDescriptor(k._1))) {
+      for ((desc, subset) <- knapsacksAndSolutions.groupBy(getDescriptor)) {
         val runsForEach = 10
-        val results = subset map {
-          case (p, l) => IndexedSeq.fill(runsForEach)(runKnapsack(optGen, p)).sum / l
-        }
+        val results = subset.map(p => IndexedSeq.fill(runsForEach)(runKnapsack(optGen, p)).sum / p.linearRelaxation)
         val average = results.sum / runsForEach / subset.size
         print(s"({$desc},$average)")
       }

@@ -1,0 +1,5 @@
+maxExperiments=1000
+targetRunner="target-runner.sh"
+trainInstancesDir=""
+trainInstancesFile="instances.list.w5"
+parameterFile="params-dynamic.description"

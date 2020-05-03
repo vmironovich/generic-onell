@@ -1,18 +1,16 @@
 package ru.ifmo.onell.problem
 
-import java.io.{IOException, InputStream}
+import java.io.{BufferedReader, IOException, InputStream, InputStreamReader}
 import java.util.concurrent.ThreadLocalRandom
 import java.util.zip.GZIPInputStream
 
 import scala.util.Using
 
-import org.ojalgo.optimisation.{Expression, ExpressionsBasedModel, Variable}
-
 import ru.ifmo.onell.{Fitness, HasIndividualOperations}
 import ru.ifmo.onell.util.OrderedSet
 import MultiDimensionalKnapsack._
 
-class MultiDimensionalKnapsack(bitDefinitions: Array[BitDefinition], weightLimits: Array[Int])
+class MultiDimensionalKnapsack(bitDefinitions: Array[BitDefinition], weightLimits: Array[Int], val linearRelaxation: Double)
   extends Fitness[Individual, Int, Int] with HasIndividualOperations[Individual]
 {
   require(bitDefinitions.forall(_.nWeights == weightLimits.length))
@@ -22,29 +20,6 @@ class MultiDimensionalKnapsack(bitDefinitions: Array[BitDefinition], weightLimit
     val sumWeights = bitDefinitions.view.map(_.weight(0)).sum
     val ratio = weightLimits(0).toDouble / sumWeights
     (ratio * 4 + 0.5).toInt / 4.0
-  }
-
-  def linearRelaxation: Double = {
-    @scala.annotation.tailrec
-    def collectExpression(weightIndex: Int, varIndex: Int, variables: Seq[Variable], expr: Expression): Expression = {
-      if (varIndex < bitDefinitions.length) {
-        collectExpression(weightIndex, varIndex + 1, variables,
-                          expr.set(variables(varIndex), bitDefinitions(varIndex).weight(weightIndex)))
-      } else expr
-    }
-
-    val model = new ExpressionsBasedModel()
-    model.options.sparse = false // otherwise it is too dumb and uses sparse matrices for large instances
-    val variables = bitDefinitions.indices.map(i => Variable.make(s"x$i").lower(0).upper(1).weight(bitDefinitions(i).cost))
-    variables.foreach(model.addVariable)
-    for (j <- weightLimits.indices) {
-      collectExpression(j, 0, variables, model.addExpression(s"knap$j")).upper(weightLimits(j))
-    }
-    val result = model.maximise()
-    model.validate(result)
-    val rv = result.getValue
-    model.dispose()
-    rv
   }
 
   // trivial methods
@@ -147,25 +122,31 @@ object MultiDimensionalKnapsack {
     }
   }
 
-  lazy val ChuBeaselyProblems: Seq[MultiDimensionalKnapsack] = (1 to 9) flatMap { i =>
-    Using.resource(classOf[MultiDimensionalKnapsack].getResourceAsStream(s"/instances/mkp/mknapcb$i.txt.gz")) { gz =>
-      Using.resource(new GZIPInputStream(gz))(parseProblems)
+  lazy val ChuBeaselyProblems: Seq[MultiDimensionalKnapsack] = {
+    Using.resource(classOf[MultiDimensionalKnapsack].getResourceAsStream(s"/instances/mkp/relaxations.txt")) { rel =>
+      Using.resource(new BufferedReader(new InputStreamReader(rel))) { relLines =>
+        (1 to 9) flatMap { i =>
+          Using.resource(classOf[MultiDimensionalKnapsack].getResourceAsStream(s"/instances/mkp/mknapcb$i.txt.gz")) { gz =>
+            Using.resource(new GZIPInputStream(gz))(parseProblems(relLines))
+          }
+        }
+      }
     }
   }
 
-  def parseProblems(stream: InputStream): Seq[MultiDimensionalKnapsack] = {
+  def parseProblems(relaxationLineReader: BufferedReader)(stream: InputStream): Seq[MultiDimensionalKnapsack] = {
     val reader = new IntReader(stream)
     val nProblems = reader.nextInt()
-    Seq.fill(nProblems)(parseProblem(reader))
+    Seq.fill(nProblems)(parseProblem(reader, relaxationLineReader))
   }
 
-  private def parseProblem(reader: IntReader): MultiDimensionalKnapsack = {
+  private def parseProblem(reader: IntReader, relaxationLineReader: BufferedReader): MultiDimensionalKnapsack = {
     val problemSize, nWeights, _ = reader.nextInt()
     val costs = Array.fill(problemSize)(reader.nextInt())
     val weights = Array.fill(nWeights, problemSize)(reader.nextInt())
     val maxWeights = Array.fill(nWeights)(reader.nextInt())
     val bitDefinitions = Array.tabulate(problemSize)(i => new BitDefinition(costs(i), Array.tabulate(nWeights)(j => weights(j)(i))))
-    new MultiDimensionalKnapsack(bitDefinitions, maxWeights)
+    new MultiDimensionalKnapsack(bitDefinitions, maxWeights, relaxationLineReader.readLine().toDouble)
   }
 
   private class IntReader(stream: InputStream) {
