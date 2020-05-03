@@ -10,9 +10,8 @@ class OneMaxPermTests extends AnyFlatSpec with Matchers {
     while (big < 1000) {
       var small = 0
       while (small < big) {
-        val j0j1 = OneMaxPerm.unpack(change)
-        val j0 = j0j1.toInt
-        val j1 = (j0j1 >>> 32).toInt
+        val j1 = OneMaxPerm.getBigger(change)
+        val j0 = OneMaxPerm.getSmaller(change, j1)
 
         j0 shouldBe small
         j1 shouldBe big
@@ -24,9 +23,9 @@ class OneMaxPermTests extends AnyFlatSpec with Matchers {
   }
 
   it should "work correctly for large inputs" in {
-    val pair = OneMaxPerm.unpack(1457569539L)
-    val smaller = pair.toInt
-    val bigger = (pair >>> 32).toInt
+    val input = 1457569539L
+    val bigger = OneMaxPerm.getBigger(input)
+    val smaller = OneMaxPerm.getSmaller(input, bigger)
     bigger shouldBe 53992
     smaller shouldBe 28503
   }

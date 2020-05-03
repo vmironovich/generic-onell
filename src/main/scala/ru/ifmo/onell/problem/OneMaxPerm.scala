@@ -26,9 +26,9 @@ class OneMaxPerm(val problemSize: Int)
     var i = 0
     var newFitness = currentFitness
     while (i < delta.size) {
-      val j0j1 = OneMaxPerm.unpack(delta(i))
-      val j0 = j0j1.toInt
-      val j1 = (j0j1 >>> 32).toInt
+      val di = delta(i)
+      val j1 = OneMaxPerm.getBigger(di)
+      val j0 = OneMaxPerm.getSmaller(di, j1)
 
       if (ind(j0) == j0) newFitness -= 1
       if (ind(j1) == j1) newFitness -= 1
@@ -43,9 +43,9 @@ class OneMaxPerm(val problemSize: Int)
   override def unapplyDelta(ind: Permutation, delta: OrderedSet[Long]): Unit = {
     var i = delta.size - 1
     while (i >= 0) {
-      val j0j1 = OneMaxPerm.unpack(delta(i))
-      val j0 = j0j1.toInt
-      val j1 = (j0j1 >>> 32).toInt
+      val di = delta(i)
+      val j1 = OneMaxPerm.getBigger(di)
+      val j0 = OneMaxPerm.getSmaller(di, j1)
       ind.swap(j0, j1)
       i -= 1
     }
@@ -53,9 +53,6 @@ class OneMaxPerm(val problemSize: Int)
 }
 
 object OneMaxPerm {
-  def unpack(change: Long): Long = {
-    val bigger = ((1 + math.sqrt(1 + 8.0 * change)) / 2).toLong
-    val smaller = change - bigger * (bigger - 1) / 2
-    smaller ^ (bigger << 32)
-  }
+  def getBigger(change: Long): Int = ((1 + math.sqrt(1 + 8.0 * change)) / 2).toInt
+  def getSmaller(change: Long, bigger: Int): Int = (change - bigger * (bigger - 1L) / 2).toInt
 }
