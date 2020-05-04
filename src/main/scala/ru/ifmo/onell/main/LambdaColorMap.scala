@@ -28,6 +28,7 @@ object LambdaColorMap extends Main.Module {
     "             --runs         <int>: the number of runs for each λ",
     "             --weight       <int>: the maximum allowed weight",
     "             --lambda-power <double>: the multiplicative step for λ to use",
+    "             --tuning       <tuning>: the tuning(s) to use",
     "             --out-prefix   <string>: the filename prefix to use",
     "  perm:om <options>: runs the experiments for OneMax on permutations.",
     "        Options are:",
@@ -35,7 +36,19 @@ object LambdaColorMap extends Main.Module {
     "             --runs         <int>: the number of runs for each λ",
     "             --max-lambda   <double>: the maximum λ to use",
     "             --lambda-power <double>: the multiplicative step for λ to use",
+    "             --tuning       <tuning>: the tuning(s) to use",
     "             --out-prefix   <string>: the filename prefix to use",
+    "",
+    "The --tuning parameters are one or more comma-separated five-character strings",
+    "with the following meaning:",
+    "  abcde",
+    "  |||||",
+    "  ||||+- population size rounding: up (U), down (D), probabilistic (P)",
+    "  |||+-- good mutant strategy: ignore (I), skip crossover (S), do not count (C), do not sample (S)",
+    "  ||+--- crossover distribution source: lambda (L), offspring distance (D)",
+    "  |+---- crossover distribution shape: standard (S), shift (H), resampling (R)",
+    "  +----- mutation distribution shape:  standard (S), shift (H), resampling (R)",
+    "Each of these symbols can be '*' which means that each of the choices is tested.",
   )
 
   override def moduleMain(args: Array[String]): Unit = args(0) match {
@@ -43,12 +56,107 @@ object LambdaColorMap extends Main.Module {
                                           runs = args.getOption("--runs").toInt,
                                           lambdaPower = args.getOption("--lambda-power").toDouble,
                                           weight = args.getOption("--weight").toInt,
+                                          tuningMask = args.getOption("--tuning"),
                                           filePrefix = args.getOption("--out-prefix"))
     case "perm:om"      => collect3DPlotsPerm(n = args.getOption("--n").toInt,
                                               runs = args.getOption("--runs").toInt,
                                               lambdaPower = args.getOption("--lambda-power").toDouble,
                                               maxLambda = args.getOption("--max-lambda").toDouble,
-                                              file = args.getOption("--out-prefix"))
+                                              tuningMask = args.getOption("--tuning"),
+                                              filePrefix = args.getOption("--out-prefix"))
+  }
+
+  private val mutationDistributions = Map(
+    'S' -> MutationStrength.Standard,
+    'H' -> MutationStrength.Shift,
+    'R' -> MutationStrength.Resampling,
+  )
+
+  private def expandMutationDistribution(char: Char): Seq[Char] = char match {
+    case 'S' => "S"
+    case 'H' => "H"
+    case 'R' => "R"
+    case '*' => "SHR"
+    case c => throw new IllegalArgumentException(s"Illegal mutation distribution (first symbol) '$c', can be one of 'S', 'H', 'R', '*'")
+  }
+
+  private def expandCrossoverDistributionShape(char: Char): Seq[Char] = char match {
+    case 'S' => "S"
+    case 'H' => "H"
+    case 'R' => "R"
+    case '*' => "SHR"
+    case c => throw new IllegalArgumentException(s"Illegal crossover distribution shape (second symbol) '$c', can be one of 'S', 'H', 'R', '*'")
+  }
+
+  private def expandCrossoverDistributionSource(char: Char): Seq[Char] = char match {
+    case 'L' => "L"
+    case 'D' => "D"
+    case '*' => "LD"
+    case c => throw new IllegalArgumentException(s"Illegal crossover distribution source (third symbol) '$c', can be one of 'L', 'D', '*'")
+  }
+
+  private def parseCrossoverDistribution(shape: Char, source: Char): CrossoverStrength =  s"$shape$source" match {
+    case "SL" => CrossoverStrength.StandardL
+    case "SD" => CrossoverStrength.StandardD
+    case "HL" => CrossoverStrength.ShiftL
+    case "HD" => CrossoverStrength.ShiftD
+    case "RL" => CrossoverStrength.ResamplingL
+    case "RD" => CrossoverStrength.ResamplingD
+    case _ => throw new AssertionError()
+  }
+
+  private val goodMutantStrategies = Map(
+    'I' -> GoodMutantStrategy.Ignore,
+    'S' -> GoodMutantStrategy.SkipCrossover,
+    'C' -> GoodMutantStrategy.DoNotCountIdentical,
+    'M' -> GoodMutantStrategy.DoNotSampleIdentical,
+  )
+
+  private def expandGoodMutantStrategy(c: Char): Seq[Char] = c match {
+    case 'I' => "I"
+    case 'S' => "S"
+    case 'C' => "C"
+    case 'M' => "M"
+    case '*' => "ISCM"
+    case c =>
+      throw new IllegalArgumentException(s"Illegal good mutant strategy (fourth symbol) '$c', can be one of 'I', 'S', 'C', 'M', '*'")
+  }
+
+  private val populationSizeRoundings = Map(
+    'U' -> roundUpPopulationSize,
+    'D' -> roundDownPopulationSize,
+    'P' -> probabilisticPopulationSize,
+  )
+
+  private def expandPopulationSizeRounding(rnd: Char): Seq[Char] = rnd match {
+    case 'U' => "U"
+    case 'D' => "D"
+    case 'P' => "P"
+    case '*' => "UDP"
+    case c =>
+      throw new IllegalArgumentException(s"Illegal population size rounding (fifth symbol) '$c', can be one of 'U', 'D', 'P','*'")
+  }
+
+  private def tuningExtractor(mask: String): Seq[(Double => OnePlusLambdaLambdaGA, String)] = {
+    for {
+      singleMask <- mask.split(',').toIndexedSeq
+      mutDistSym <- expandMutationDistribution(singleMask(0))
+      crossDistShapeSym <- expandCrossoverDistributionShape(singleMask(1))
+      crossDistSourceSym <- expandCrossoverDistributionSource(singleMask(2))
+      goodMutantSym <- expandGoodMutantStrategy(singleMask(3))
+      roundingSym <- expandPopulationSizeRounding(singleMask(4))
+    } yield {
+      val alg = (lambda: Double) => new OnePlusLambdaLambdaGA(
+        lambdaTuning = fixedLambda(lambda),
+        mutationStrength = mutationDistributions(mutDistSym),
+        crossoverStrength = parseCrossoverDistribution(crossDistShapeSym, crossDistSourceSym),
+        goodMutantStrategy = goodMutantStrategies(goodMutantSym),
+        constantTuning = defaultTuning,
+        populationRounding = populationSizeRoundings(roundingSym)
+      )
+      val code = s"$mutDistSym$crossDistShapeSym$crossDistSourceSym$goodMutantSym$roundingSym"
+      (alg, code)
+    }
   }
 
   private class HammingImprovementStatistics(val size: Int) {
@@ -59,11 +167,9 @@ object LambdaColorMap extends Main.Module {
       hammingIncrements(distance) += increment
     }
 
-    def extract(target: Array[Double]): Unit = {
-      for (i <- 1 until target.length) {
+    def extract(target: Array[Double]): Unit =
+      for (i <- 1 until target.length)
         target(i) = hammingIncrements(i).toDouble / hammingCounts(i)
-      }
-    }
   }
 
   private class HammingImprovementCollector(stats: HammingImprovementStatistics)
@@ -115,111 +221,103 @@ object LambdaColorMap extends Main.Module {
   private def collect3DPlots(optimizerFromLambda: Double => OnePlusLambdaLambdaGA,
                              n: Int, runs: Int, lambdaPower: Double, weight: Int, file: String): Unit = {
     val executor = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
-    Using.resource(new PrintWriter(file + ".txt.cmp")) { out =>
-      Using.resource(new PrintWriter(file + ".raw.cmp")) { raw =>
-        val rng = new Random(9234352524211L)
-        val maxLambda = (math.log(n) / 1.25 / math.log(lambdaPower)).toInt
-        val arrays = Array.ofDim[Double](maxLambda, n / 2 + 1)
+    Using.resources(
+      new PrintWriter(file + ".txt.cmp"),
+      new PrintWriter(file + ".raw.cmp"),
+    ) { (out, raw) =>
+      val rng = new Random(9234352524211L)
+      val maxLambda = (math.log(n) / 1.25 / math.log(lambdaPower)).toInt
+      val arrays = Array.ofDim[Double](maxLambda, n / 2 + 1)
 
-        def lambdaGenFun(lg: Int): Double = math.pow(lambdaPower, lg)
+      def lambdaGenFun(lg: Int): Double = math.pow(lambdaPower, lg)
 
-        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
-          val oll = optimizerFromLambda(lambda)
-          val logger = new HammingImprovementStatistics(n)
+      for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
+        val oll = optimizerFromLambda(lambda)
+        val logger = new HammingImprovementStatistics(n)
 
-          def newCallable(): Callable[Unit] = () => oll.optimize(
-            new LinearRandomIntegerWeights(n, weight, rng.nextLong()).withHammingDistanceTracking,
-            new HammingImprovementCollector(logger))
+        def newCallable(): Callable[Unit] = () => oll.optimize(
+          new LinearRandomIntegerWeights(n, weight, rng.nextLong()).withHammingDistanceTracking,
+          new HammingImprovementCollector(logger))
 
-          executor.invokeAll((0 until runs).map(_ => newCallable()).asJava).forEach(_.get())
-          logger.extract(arrays(lambdaGen))
-          println(s"[$file]: lambda $lambda done")
-        }
-        raw.println(s"lambda power $lambdaPower")
-        raw.println("distance offset 1")
-        for (a <- arrays) {
-          raw.println(a.view.slice(1, n / 2 + 1).map(to3dPlotNumber).mkString(" "))
-        }
-        for (dist <- 1 to n / 2) {
-          val sumAcross = arrays.view.map(_ (dist)).max
-          arrays.foreach(_ (dist) /= sumAcross)
-        }
-        out.println(s"lambda power $lambdaPower")
-        out.println("distance offset 1")
-        for (a <- arrays) {
-          out.println(a.view.slice(1, n / 2 + 1).map(to3dPlotNumber).mkString(" "))
-        }
+        executor.invokeAll((0 until runs).map(_ => newCallable()).asJava).forEach(_.get())
+        logger.extract(arrays(lambdaGen))
+        println(s"[$file]: lambda $lambda done")
       }
+
+      raw.println(s"lambda power $lambdaPower")
+      raw.println("distance offset 1")
+      for (a <- arrays)
+        raw.println(a.view.slice(1, n / 2 + 1).map(to3dPlotNumber).mkString(" "))
+
+      for (dist <- 1 to n / 2) {
+        val maxAcross = arrays.view.map(_(dist)).max
+        for (y <- arrays.indices)
+          arrays(y)(dist) /= maxAcross
+      }
+
+      out.println(s"lambda power $lambdaPower")
+      out.println("distance offset 1")
+      for (a <- arrays)
+        out.println(a.view.slice(1, n / 2 + 1).map(to3dPlotNumber).mkString(" "))
     }
     executor.shutdown()
     executor.awaitTermination(365, TimeUnit.DAYS)
   }
 
-  private def collect3DPlots(n: Int, runs: Int, lambdaPower: Double, weight: Int, filePrefix: String): Unit = {
-    val roundings = Seq(roundDownPopulationSize -> "down", roundUpPopulationSize -> "up", probabilisticPopulationSize -> "rnd")
-    val mutations = Seq(MutationStrength.Standard -> "std", MutationStrength.Resampling -> "res", MutationStrength.Shift -> "shf")
-    val crossovers = Seq(CrossoverStrength.StandardD -> "stdD", CrossoverStrength.StandardL -> "stdL",
-                         CrossoverStrength.ResamplingD -> "resD", CrossoverStrength.ResamplingL -> "resL",
-                         CrossoverStrength.ShiftD -> "shfD", CrossoverStrength.ShiftL -> "shfL")
-    val goodMutants = Seq(GoodMutantStrategy.Ignore -> "ignore", GoodMutantStrategy.SkipCrossover -> "skip",
-                          GoodMutantStrategy.DoNotCountIdentical -> "notcount", GoodMutantStrategy.DoNotSampleIdentical -> "notsample")
-    for ((rounding, roundingName) <- roundings;
-         (mutation, mutationName) <- mutations;
-         (crossover, crossoverName) <- crossovers;
-         (goodMutant, goodMutantName) <- goodMutants) {
-      collect3DPlots(lambda => new OnePlusLambdaLambdaGA(lambdaTuning = fixedLambda(lambda),
-                                                         mutationStrength = mutation,
-                                                         crossoverStrength = crossover,
-                                                         goodMutantStrategy = goodMutant,
-                                                         populationRounding = rounding),
-                     n, runs, lambdaPower, weight,
-                     s"$filePrefix-$roundingName-$mutationName-$crossoverName-$goodMutantName")
-    }
-  }
+  private def collect3DPlots(n: Int, runs: Int, lambdaPower: Double, weight: Int,
+                             tuningMask: String, filePrefix: String): Unit =
+    for ((algFun, code) <- tuningExtractor(tuningMask))
+      collect3DPlots(algFun, n, runs, lambdaPower, weight,s"$filePrefix-$code")
 
-  private def collect3DPlotsPerm(n: Int, runs: Int, lambdaPower: Double, maxLambda: Double, file: String): Unit = {
+  //noinspection SameParameterValue: IDEA wrongly reports `file` to have the same parameter value for interpolated arg
+  private def collect3DPlotsPerm(optimizerFromLambda: Double => OnePlusLambdaLambdaGA,
+                                  n: Int, runs: Int, lambdaPower: Double, maxLambda: Double, file: String): Unit = {
     val executor = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
-    Using.resource(new PrintWriter(file + ".txt.cmp")) { out =>
-      Using.resource(new PrintWriter(file + ".raw.cmp")) { raw =>
-        val maxLambdaIndex = 1 + (math.log(maxLambda) / math.log(lambdaPower)).toInt
-        val arrays = Array.ofDim[Double](maxLambdaIndex, n + 1)
+    Using.resources(
+      new PrintWriter(file + ".txt.cmp"),
+      new PrintWriter(file + ".raw.cmp"),
+    ) { (out, raw) =>
+      val maxLambdaIndex = 1 + (math.log(maxLambda) / math.log(lambdaPower)).toInt
+      val arrays = Array.ofDim[Double](maxLambdaIndex, n + 1)
 
-        def lambdaGenFun(lg: Int): Double = math.pow(lambdaPower, lg)
+      def lambdaGenFun(lg: Int): Double = math.pow(lambdaPower, lg)
 
-        for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
-          val fun = new OneMaxPerm(n)
-          val oll = new OnePlusLambdaLambdaGA(fixedLambda(lambda),
-                                              mutationStrength = MutationStrength.Resampling,
-                                              crossoverStrength = CrossoverStrength.ResamplingL,
-                                              goodMutantStrategy = GoodMutantStrategy.DoNotCountIdentical,
-                                              populationRounding = probabilisticPopulationSize)
-          val logger = new HammingImprovementStatistics(n)
+      for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
+        val fun = new OneMaxPerm(n)
+        val oll = optimizerFromLambda(lambda)
+        val logger = new HammingImprovementStatistics(n)
 
-          def newCallable(): Callable[Unit] = () => oll.optimize(fun, new PermImprovementCollector(logger))
+        def newCallable(): Callable[Unit] = () => oll.optimize(fun, new PermImprovementCollector(logger))
 
-          executor.invokeAll((0 until runs).map(_ => newCallable()).asJava).forEach(_.get())
-          logger.extract(arrays(lambdaGen))
-          println(s"[$file]: lambda $lambda done")
-        }
-        raw.println(s"lambda power $lambdaPower")
-        raw.println(s"distance offset 2")
-        for (a <- arrays) {
-          raw.println(a.view.slice(2, n + 1).map(to3dPlotNumber).mkString(" "))
-        }
-        for (dist <- 1 to n) {
-          val sumAcross = arrays.view.map(_ (dist)).max
-          arrays.foreach(_ (dist) /= sumAcross)
-        }
-        out.println(s"lambda power $lambdaPower")
-        out.println(s"distance offset 2")
-        for (a <- arrays) {
-          out.println(a.view.slice(2, n + 1).map(to3dPlotNumber).mkString(" "))
-        }
+        executor.invokeAll((0 until runs).map(_ => newCallable()).asJava).forEach(_.get())
+        logger.extract(arrays(lambdaGen))
+        println(s"[$file]: lambda $lambda done")
       }
+
+      raw.println(s"lambda power $lambdaPower")
+      raw.println(s"distance offset 2")
+      for (a <- arrays)
+        raw.println(a.view.slice(2, n + 1).map(to3dPlotNumber).mkString(" "))
+
+      for (dist <- 2 to n) {
+        val maxAcross = arrays.view.map(_ (dist)).max
+        for (y <- arrays.indices)
+          arrays(y)(dist) /= maxAcross
+      }
+
+      out.println(s"lambda power $lambdaPower")
+      out.println(s"distance offset 2")
+      for (a <- arrays)
+        out.println(a.view.slice(2, n + 1).map(to3dPlotNumber).mkString(" "))
     }
     executor.shutdown()
     executor.awaitTermination(365, TimeUnit.DAYS)
   }
+
+  private def collect3DPlotsPerm(n: Int, runs: Int, lambdaPower: Double, maxLambda: Double,
+                                 tuningMask: String, filePrefix: String): Unit =
+    for ((algFun, code) <- tuningExtractor(tuningMask))
+      collect3DPlotsPerm(algFun, n, runs, lambdaPower, maxLambda, s"$filePrefix-$code")
 
   private implicit class Options(val args: Array[String]) extends AnyVal {
     def getOption(option: String): String = {
