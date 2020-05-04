@@ -26,6 +26,7 @@ object RunningTimes extends Main.Module {
     "  bits:om:log     <context>: same but starting at the distance of log(n+1) from the end",
     "  bits:om:lin     <context>: same but starting at the distance of q*n from the end, q is passed with --q option",
     "  bits:l2d        <context>: for linear functions with random weights from [1;2]",
+    "  bits:l5d        <context>: for linear functions with random weights from [1;5]",
     "  bits:sat        <context>: for the MAX-SAT problem with logarithmic density",
     "  bits:sat:sqrt   <context>: same but starting at the distance of sqrt(n) from the end",
     "  bits:sat:log    <context>: same but starting at the distance of log(n+1) from the end",
@@ -53,14 +54,15 @@ object RunningTimes extends Main.Module {
     case "bits:om"         => bitsOneMaxSimple(parseContext(args))
     case "bits:om:sqrt"    => bitsOneMaxAlmostOptimal(parseContext(args), n => math.sqrt(n))
     case "bits:om:log"     => bitsOneMaxAlmostOptimal(parseContext(args), n => math.log(n + 1))
-    case "bits:l2d"        => bitsLinearDoubleSimple(parseContext(args))
+    case "bits:l2d"        => bitsLinearSimple(parseContext(args), 2.0)
+    case "bits:l5d"        => bitsLinearSimple(parseContext(args), 5.0)
     case "bits:sat"        => bitsMaxSATSimple(parseContext(args))
     case "bits:sat:sqrt"   => bitsMaxSATAlmostOptimal(parseContext(args), n => math.sqrt(n))
     case "bits:sat:log"    => bitsMaxSATAlmostOptimal(parseContext(args), n => math.log(n + 1))
     case "perm:om"         => permOneMaxSimple(parseContext(args))
     case "bits:om:tuning"  => bitsOneMaxAllTuningChoices(parseContext(args))
-    case "bits:l2d:tuning" => bitsLinearDoubleTunings(parseContext(args), 2.0)
-    case "bits:l5d:tuning" => bitsLinearDoubleTunings(parseContext(args), 5.0)
+    case "bits:l2d:tuning" => bitsLinearTunings(parseContext(args), 2.0)
+    case "bits:l5d:tuning" => bitsLinearTunings(parseContext(args), 5.0)
     case "bits:sat:tuning" => bitsMaxSatTunings(parseContext(args))
     case "bits:om:tuning*" => bitsOneMaxIRacedTuningChoices(parseContext(args), args.getOption("--files"))
     case "bits:l2d:tuning*" => bitsLinearDoubleIRacedTuningChoices(parseContext(args), 2.0, args.getOption("--files"))
@@ -216,7 +218,7 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private def bitsLinearDoubleSimple(context: Context): Unit = {
+  private def bitsLinearSimple(context: Context, maxWeight: Double): Unit = {
     val algorithms = Seq(
       "RLS" -> OnePlusOneEA.RLS,
       "(1+1) EA" -> OnePlusOneEA.Resampling,
@@ -229,14 +231,14 @@ object RunningTimes extends Main.Module {
     context.run { (scheduler, n) =>
       for ((name, alg) <- algorithms) {
         scheduler addTask {
-          val time = alg.optimize(new LinearRandomDoubleWeights(n, 2.0, seeder.nextLong()))
+          val time = alg.optimize(new LinearRandomDoubleWeights(n, maxWeight, seeder.nextLong()))
           s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
   }
 
-  private def bitsLinearDoubleTunings(context: Context, maxWeight: Double): Unit = {
+  private def bitsLinearTunings(context: Context, maxWeight: Double): Unit = {
     val seeder = new Random(314252354)
     context.run { (scheduler, n) =>
       for ((jsonName, algGenerator) <- tuningChoices) {
