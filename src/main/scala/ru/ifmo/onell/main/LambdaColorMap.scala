@@ -11,8 +11,9 @@ import scala.Ordering.Double.TotalOrdering
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 import ru.ifmo.onell.problem.HammingDistance._
-import ru.ifmo.onell.problem.{LinearRandomIntegerWeights, OneMaxPerm}
-import ru.ifmo.onell.{IterationLogger, Main}
+import ru.ifmo.onell.problem.{LinearRandomIntegerWeights, OneMaxPerm, RandomPlanted3SAT}
+import ru.ifmo.onell.util.Specialization
+import ru.ifmo.onell.{Fitness, IterationLogger, Main}
 
 object LambdaColorMap extends Main.Module {
   override def name: String = "lambda-color-map"
@@ -27,6 +28,13 @@ object LambdaColorMap extends Main.Module {
     "             --n            <int>: the problem size",
     "             --runs         <int>: the number of runs for each λ",
     "             --weight       <int>: the maximum allowed weight",
+    "             --lambda-power <double>: the multiplicative step for λ to use",
+    "             --tuning       <tuning>: the tuning(s) to use",
+    "             --out-prefix   <string>: the filename prefix to use",
+    "  bits:sat <options>: runs the experiments for random easy MAX-SAT instances.",
+    "        Options are:",
+    "             --n            <int>: the problem size",
+    "             --runs         <int>: the number of runs for each λ",
     "             --lambda-power <double>: the multiplicative step for λ to use",
     "             --tuning       <tuning>: the tuning(s) to use",
     "             --out-prefix   <string>: the filename prefix to use",
@@ -52,18 +60,31 @@ object LambdaColorMap extends Main.Module {
   )
 
   override def moduleMain(args: Array[String]): Unit = args(0) match {
-    case "bits:li"      => collect3DPlots(n = args.getOption("--n").toInt,
-                                          runs = args.getOption("--runs").toInt,
-                                          lambdaPower = args.getOption("--lambda-power").toDouble,
-                                          weight = args.getOption("--weight").toInt,
-                                          tuningMask = args.getOption("--tuning"),
-                                          filePrefix = args.getOption("--out-prefix"))
-    case "perm:om"      => collect3DPlotsPerm(n = args.getOption("--n").toInt,
-                                              runs = args.getOption("--runs").toInt,
-                                              lambdaPower = args.getOption("--lambda-power").toDouble,
-                                              maxLambda = args.getOption("--max-lambda").toDouble,
-                                              tuningMask = args.getOption("--tuning"),
-                                              filePrefix = args.getOption("--out-prefix"))
+    case "bits:li" =>
+      val weight = args.getOption("--weight").toInt
+      collect3DPlots(
+        problemInstanceGen = (n, seed) => new LinearRandomIntegerWeights(n, weight, seed),
+        n = args.getOption("--n").toInt,
+        runs = args.getOption("--runs").toInt,
+        lambdaPower = args.getOption("--lambda-power").toDouble,
+        tuningMask = args.getOption("--tuning"),
+        filePrefix = args.getOption("--out-prefix"))
+    case "bits:sat" =>
+      collect3DPlots(
+        problemInstanceGen = (n, seed) => new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt, RandomPlanted3SAT.EasyGenerator, seed),
+        n = args.getOption("--n").toInt,
+        runs = args.getOption("--runs").toInt,
+        lambdaPower = args.getOption("--lambda-power").toDouble,
+        tuningMask = args.getOption("--tuning"),
+        filePrefix = args.getOption("--out-prefix"))
+    case "perm:om" =>
+      collect3DPlotsPerm(
+        n = args.getOption("--n").toInt,
+        runs = args.getOption("--runs").toInt,
+        lambdaPower = args.getOption("--lambda-power").toDouble,
+        maxLambda = args.getOption("--max-lambda").toDouble,
+        tuningMask = args.getOption("--tuning"),
+        filePrefix = args.getOption("--out-prefix"))
   }
 
   private val mutationDistributions = Map(
@@ -172,13 +193,15 @@ object LambdaColorMap extends Main.Module {
         target(i) = hammingIncrements(i).toDouble / hammingCounts(i)
   }
 
-  private class HammingImprovementCollector(stats: HammingImprovementStatistics)
-    extends IterationLogger[FAHD[Long]]
+  private class HammingImprovementCollector[@specialized(Specialization.fitnessSpecialization) F]
+    (stats: HammingImprovementStatistics)(implicit fitness2long: F => Long)
+    extends IterationLogger[FAHD[F]]
   {
-    private[this] var lastEvaluations, lastFitness = 0L
+    private[this] var lastEvaluations = 0L
+    private[this] var lastFitness: F = _
     private[this] var lastDistance = -1
 
-    override def logIteration(evaluations: Long, fitness: FAHD[Long]): Unit = {
+    override def logIteration(evaluations: Long, fitness: FAHD[F]): Unit = {
       if (evaluations == 1) { // start
         lastEvaluations = 1
         lastDistance = fitness.distance
@@ -218,8 +241,11 @@ object LambdaColorMap extends Main.Module {
   private def to3dPlotNumber(v: Double): String = String.format(Locale.US, "%.2e", v)
 
   //noinspection SameParameterValue: IDEA wrongly reports `file` to have the same parameter value for interpolated arg
-  private def collect3DPlots(optimizerFromLambda: Double => OnePlusLambdaLambdaGA,
-                             n: Int, runs: Int, lambdaPower: Double, weight: Int, file: String): Unit = {
+  private def collect3DPlots[@specialized(Specialization.fitnessSpecialization) F]
+                            (optimizerFromLambda: Double => OnePlusLambdaLambdaGA,
+                             problemInstanceGen: (Int, Long) => Fitness[Array[Boolean], F, Int],
+                             n: Int, runs: Int, lambdaPower: Double, file: String)
+                            (implicit fitness2long: F => Long): Unit = {
     val executor = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
     Using.resources(
       new PrintWriter(file + ".txt.cmp"),
@@ -236,8 +262,8 @@ object LambdaColorMap extends Main.Module {
         val logger = new HammingImprovementStatistics(n)
 
         def newCallable(): Callable[Unit] = () => oll.optimize(
-          new LinearRandomIntegerWeights(n, weight, rng.nextLong()).withHammingDistanceTracking,
-          new HammingImprovementCollector(logger))
+          problemInstanceGen(n, rng.nextLong()).withHammingDistanceTracking,
+          new HammingImprovementCollector[F](logger))
 
         executor.invokeAll((0 until runs).map(_ => newCallable()).asJava).forEach(_.get())
         logger.extract(arrays(lambdaGen))
@@ -264,10 +290,13 @@ object LambdaColorMap extends Main.Module {
     executor.awaitTermination(365, TimeUnit.DAYS)
   }
 
-  private def collect3DPlots(n: Int, runs: Int, lambdaPower: Double, weight: Int,
-                             tuningMask: String, filePrefix: String): Unit =
+  private def collect3DPlots[@specialized(Specialization.fitnessSpecialization) F]
+                            (problemInstanceGen: (Int, Long) => Fitness[Array[Boolean], F, Int],
+                             n: Int, runs: Int, lambdaPower: Double,
+                             tuningMask: String, filePrefix: String)
+                            (implicit fitness2long: F => Long): Unit =
     for ((algFun, code) <- tuningExtractor(tuningMask))
-      collect3DPlots(algFun, n, runs, lambdaPower, weight,s"$filePrefix-$code")
+      collect3DPlots(algFun, problemInstanceGen, n, runs, lambdaPower, s"$filePrefix-$code")
 
   //noinspection SameParameterValue: IDEA wrongly reports `file` to have the same parameter value for interpolated arg
   private def collect3DPlotsPerm(optimizerFromLambda: Double => OnePlusLambdaLambdaGA,
