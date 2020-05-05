@@ -10,6 +10,7 @@ import scala.Ordering.Double.TotalOrdering
 
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
+import ru.ifmo.onell.main.util.AlgorithmCodeNames
 import ru.ifmo.onell.problem.HammingDistance._
 import ru.ifmo.onell.problem.{LinearRandomIntegerWeights, OneMaxPerm, RandomPlanted3SAT}
 import ru.ifmo.onell.util.Specialization
@@ -46,18 +47,8 @@ object LambdaColorMap extends Main.Module {
     "             --lambda-power <double>: the multiplicative step for λ to use",
     "             --tuning       <tuning>: the tuning(s) to use",
     "             --out-prefix   <string>: the filename prefix to use",
-    "",
-    "The --tuning parameters are one or more comma-separated five-character strings",
-    "with the following meaning:",
-    "  abcde",
-    "  |||||",
-    "  ||||+- population size rounding: up (U), down (D), probabilistic (P)",
-    "  |||+-- good mutant strategy: ignore (I), skip crossover (S), do not count (C), do not sample (S)",
-    "  ||+--- crossover distribution source: lambda (L), offspring distance (D)",
-    "  |+---- crossover distribution shape: standard (S), shift (H), resampling (R)",
-    "  +----- mutation distribution shape:  standard (S), shift (H), resampling (R)",
-    "Each of these symbols can be '*' which means that each of the choices is tested.",
-  )
+    ""
+  ) ++ AlgorithmCodeNames.parserDescriptionForOnePlusLambdaLambdaGenerators("--tuning")
 
   override def moduleMain(args: Array[String]): Unit = args(0) match {
     case "bits:li" =>
@@ -85,99 +76,6 @@ object LambdaColorMap extends Main.Module {
         maxLambda = args.getOption("--max-lambda").toDouble,
         tuningMask = args.getOption("--tuning"),
         filePrefix = args.getOption("--out-prefix"))
-  }
-
-  private val mutationDistributions = Map(
-    'S' -> MutationStrength.Standard,
-    'H' -> MutationStrength.Shift,
-    'R' -> MutationStrength.Resampling,
-  )
-
-  private def expandMutationDistribution(char: Char): Seq[Char] = char match {
-    case 'S' => "S"
-    case 'H' => "H"
-    case 'R' => "R"
-    case '*' => "SHR"
-    case c => throw new IllegalArgumentException(s"Illegal mutation distribution (first symbol) '$c', can be one of 'S', 'H', 'R', '*'")
-  }
-
-  private def expandCrossoverDistributionShape(char: Char): Seq[Char] = char match {
-    case 'S' => "S"
-    case 'H' => "H"
-    case 'R' => "R"
-    case '*' => "SHR"
-    case c => throw new IllegalArgumentException(s"Illegal crossover distribution shape (second symbol) '$c', can be one of 'S', 'H', 'R', '*'")
-  }
-
-  private def expandCrossoverDistributionSource(char: Char): Seq[Char] = char match {
-    case 'L' => "L"
-    case 'D' => "D"
-    case '*' => "LD"
-    case c => throw new IllegalArgumentException(s"Illegal crossover distribution source (third symbol) '$c', can be one of 'L', 'D', '*'")
-  }
-
-  private def parseCrossoverDistribution(shape: Char, source: Char): CrossoverStrength =  s"$shape$source" match {
-    case "SL" => CrossoverStrength.StandardL
-    case "SD" => CrossoverStrength.StandardD
-    case "HL" => CrossoverStrength.ShiftL
-    case "HD" => CrossoverStrength.ShiftD
-    case "RL" => CrossoverStrength.ResamplingL
-    case "RD" => CrossoverStrength.ResamplingD
-    case _ => throw new AssertionError()
-  }
-
-  private val goodMutantStrategies = Map(
-    'I' -> GoodMutantStrategy.Ignore,
-    'S' -> GoodMutantStrategy.SkipCrossover,
-    'C' -> GoodMutantStrategy.DoNotCountIdentical,
-    'M' -> GoodMutantStrategy.DoNotSampleIdentical,
-  )
-
-  private def expandGoodMutantStrategy(c: Char): Seq[Char] = c match {
-    case 'I' => "I"
-    case 'S' => "S"
-    case 'C' => "C"
-    case 'M' => "M"
-    case '*' => "ISCM"
-    case c =>
-      throw new IllegalArgumentException(s"Illegal good mutant strategy (fourth symbol) '$c', can be one of 'I', 'S', 'C', 'M', '*'")
-  }
-
-  private val populationSizeRoundings = Map(
-    'U' -> roundUpPopulationSize,
-    'D' -> roundDownPopulationSize,
-    'P' -> probabilisticPopulationSize,
-  )
-
-  private def expandPopulationSizeRounding(rnd: Char): Seq[Char] = rnd match {
-    case 'U' => "U"
-    case 'D' => "D"
-    case 'P' => "P"
-    case '*' => "UDP"
-    case c =>
-      throw new IllegalArgumentException(s"Illegal population size rounding (fifth symbol) '$c', can be one of 'U', 'D', 'P','*'")
-  }
-
-  private def tuningExtractor(mask: String): Seq[((Long => OnePlusLambdaLambdaGA.LambdaTuning) => OnePlusLambdaLambdaGA, String)] = {
-    for {
-      singleMask <- mask.split(',').toIndexedSeq
-      mutDistSym <- expandMutationDistribution(singleMask(0))
-      crossDistShapeSym <- expandCrossoverDistributionShape(singleMask(1))
-      crossDistSourceSym <- expandCrossoverDistributionSource(singleMask(2))
-      goodMutantSym <- expandGoodMutantStrategy(singleMask(3))
-      roundingSym <- expandPopulationSizeRounding(singleMask(4))
-    } yield {
-      val alg = (lambdaTuning: Long => OnePlusLambdaLambdaGA.LambdaTuning) => new OnePlusLambdaLambdaGA(
-        lambdaTuning = lambdaTuning,
-        mutationStrength = mutationDistributions(mutDistSym),
-        crossoverStrength = parseCrossoverDistribution(crossDistShapeSym, crossDistSourceSym),
-        goodMutantStrategy = goodMutantStrategies(goodMutantSym),
-        constantTuning = defaultTuning,
-        populationRounding = populationSizeRoundings(roundingSym)
-      )
-      val code = s"$mutDistSym$crossDistShapeSym$crossDistSourceSym$goodMutantSym$roundingSym"
-      (alg, code)
-    }
   }
 
   private class HammingImprovementStatistics(val size: Int) {
@@ -295,7 +193,7 @@ object LambdaColorMap extends Main.Module {
                              n: Int, runs: Int, lambdaPower: Double,
                              tuningMask: String, filePrefix: String)
                             (implicit fitness2long: F => Long): Unit =
-    for ((algFun, code) <- tuningExtractor(tuningMask))
+    for ((algFun, code) <- AlgorithmCodeNames.parseOnePlusLambdaLambdaGenerators(tuningMask))
       collect3DPlots(algFun, problemInstanceGen, n, runs, lambdaPower, s"$filePrefix-$code")
 
   //noinspection SameParameterValue: IDEA wrongly reports `file` to have the same parameter value for interpolated arg
@@ -345,7 +243,7 @@ object LambdaColorMap extends Main.Module {
 
   private def collect3DPlotsPerm(n: Int, runs: Int, lambdaPower: Double, maxLambda: Double,
                                  tuningMask: String, filePrefix: String): Unit =
-    for ((algFun, code) <- tuningExtractor(tuningMask))
+    for ((algFun, code) <- AlgorithmCodeNames.parseOnePlusLambdaLambdaGenerators(tuningMask))
       collect3DPlotsPerm(algFun, n, runs, lambdaPower, maxLambda, s"$filePrefix-$code")
 
   private implicit class Options(val args: Array[String]) extends AnyVal {
