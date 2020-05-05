@@ -247,6 +247,7 @@ object OnePlusLambdaLambdaGA {
     def incrementForTriedQueries: Int
     def incrementForTestedQueries: Int
   }
+
   object GoodMutantStrategy {
     case object Ignore extends GoodMutantStrategy {
       override def incrementForTestedQueries: Int = 1
@@ -266,6 +267,7 @@ object OnePlusLambdaLambdaGA {
     }
   }
 
+  //noinspection ScalaUnusedSymbol
   def fixedLambda(value: Double)(size: Long): LambdaTuning = new LambdaTuning {
     override def lambda(rng: Random): Double = value
     override def notifyChildIsBetter(): Unit = {}
