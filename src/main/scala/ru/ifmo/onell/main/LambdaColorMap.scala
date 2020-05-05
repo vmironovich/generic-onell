@@ -158,7 +158,7 @@ object LambdaColorMap extends Main.Module {
       throw new IllegalArgumentException(s"Illegal population size rounding (fifth symbol) '$c', can be one of 'U', 'D', 'P','*'")
   }
 
-  private def tuningExtractor(mask: String): Seq[(Double => OnePlusLambdaLambdaGA, String)] = {
+  private def tuningExtractor(mask: String): Seq[((Long => OnePlusLambdaLambdaGA.LambdaTuning) => OnePlusLambdaLambdaGA, String)] = {
     for {
       singleMask <- mask.split(',').toIndexedSeq
       mutDistSym <- expandMutationDistribution(singleMask(0))
@@ -167,8 +167,8 @@ object LambdaColorMap extends Main.Module {
       goodMutantSym <- expandGoodMutantStrategy(singleMask(3))
       roundingSym <- expandPopulationSizeRounding(singleMask(4))
     } yield {
-      val alg = (lambda: Double) => new OnePlusLambdaLambdaGA(
-        lambdaTuning = fixedLambda(lambda),
+      val alg = (lambdaTuning: Long => OnePlusLambdaLambdaGA.LambdaTuning) => new OnePlusLambdaLambdaGA(
+        lambdaTuning = lambdaTuning,
         mutationStrength = mutationDistributions(mutDistSym),
         crossoverStrength = parseCrossoverDistribution(crossDistShapeSym, crossDistSourceSym),
         goodMutantStrategy = goodMutantStrategies(goodMutantSym),
@@ -242,7 +242,7 @@ object LambdaColorMap extends Main.Module {
 
   //noinspection SameParameterValue: IDEA wrongly reports `file` to have the same parameter value for interpolated arg
   private def collect3DPlots[@specialized(Specialization.fitnessSpecialization) F]
-                            (optimizerFromLambda: Double => OnePlusLambdaLambdaGA,
+                            (optimizerFromLambda: (Long => OnePlusLambdaLambdaGA.LambdaTuning) => OnePlusLambdaLambdaGA,
                              problemInstanceGen: (Int, Long) => Fitness[Array[Boolean], F, Int],
                              n: Int, runs: Int, lambdaPower: Double, file: String)
                             (implicit fitness2long: F => Long): Unit = {
@@ -258,7 +258,7 @@ object LambdaColorMap extends Main.Module {
       def lambdaGenFun(lg: Int): Double = math.pow(lambdaPower, lg)
 
       for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
-        val oll = optimizerFromLambda(lambda)
+        val oll = optimizerFromLambda(fixedLambda(lambda))
         val logger = new HammingImprovementStatistics(n)
 
         def newCallable(): Callable[Unit] = () => oll.optimize(
@@ -299,7 +299,7 @@ object LambdaColorMap extends Main.Module {
       collect3DPlots(algFun, problemInstanceGen, n, runs, lambdaPower, s"$filePrefix-$code")
 
   //noinspection SameParameterValue: IDEA wrongly reports `file` to have the same parameter value for interpolated arg
-  private def collect3DPlotsPerm(optimizerFromLambda: Double => OnePlusLambdaLambdaGA,
+  private def collect3DPlotsPerm(optimizerFromLambda: (Long => OnePlusLambdaLambdaGA.LambdaTuning) => OnePlusLambdaLambdaGA,
                                   n: Int, runs: Int, lambdaPower: Double, maxLambda: Double, file: String): Unit = {
     val executor = Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors())
     Using.resources(
@@ -313,7 +313,7 @@ object LambdaColorMap extends Main.Module {
 
       for (lambdaGen <- arrays.indices; lambda = lambdaGenFun(lambdaGen)) {
         val fun = new OneMaxPerm(n)
-        val oll = optimizerFromLambda(lambda)
+        val oll = optimizerFromLambda(fixedLambda(lambda))
         val logger = new HammingImprovementStatistics(n)
 
         def newCallable(): Callable[Unit] = () => oll.optimize(fun, new PermImprovementCollector(logger))
