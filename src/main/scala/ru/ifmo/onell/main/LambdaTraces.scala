@@ -6,11 +6,13 @@ import java.util.concurrent.ThreadLocalRandom
 
 import scala.util.Using
 
-import ru.ifmo.onell.{IterationLogger, Main}
+import ru.ifmo.onell.{Fitness, IterationLogger, Main}
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
+import ru.ifmo.onell.main.util.AlgorithmCodeNames
 import ru.ifmo.onell.problem.HammingDistance._
-import ru.ifmo.onell.problem.LinearRandomIntegerWeights
+import ru.ifmo.onell.problem.{LinearRandomIntegerWeights, RandomPlanted3SAT}
+import ru.ifmo.onell.util.Specialization
 
 object LambdaTraces extends Main.Module {
   override def name: String = "lambda-traces"
@@ -19,39 +21,59 @@ object LambdaTraces extends Main.Module {
 
   override def longDescription: Seq[String] = Seq(
     "Runs experiments on how the parameter λ changes over time.",
-    "The experiments are done for linear functions with random",
-    "integer weights on bit strings. The options are:",
+    "The experiments are done for either linear functions with random",
+    "integer weights, or easy random maximum satisfiability problems, on bit strings. The options are:",
     "  --n             <int>: the problem size",
     "  --runs          <int>: the number of runs",
-    "  --weight        <int>: the maximum weight",
+    "  --problem <int|'SAT'>: either the maximum weight or 'SAT'",
+    "  --tuning     <string>: the algorithm tunings to use",
     "  --out-prefix <string>: the prefix of the output files to use"
-  )
+  ) ++ AlgorithmCodeNames.parserDescriptionForOnePlusLambdaLambdaGenerators("--tuning")
 
   override def moduleMain(args: Array[String]): Unit = {
-    collectTraces(n = args.getOption("--n").toInt,
-                  runs = args.getOption("--runs").toInt,
-                  weight = args.getOption("--weight").toInt,
-                  filePrefix = args.getOption("--out-prefix"))
+    val weight = args.getOption("--weight")
+    if (weight == "SAT")
+      collectTraces((n, seed) => new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt, RandomPlanted3SAT.EasyGenerator, seed),
+                    n = args.getOption("--n").toInt,
+                    runs = args.getOption("--runs").toInt,
+                    tuningMask = args.getOption("--tuning"),
+                    filePrefix = args.getOption("--out-prefix"))
+    else
+      collectTraces((n, seed) => new LinearRandomIntegerWeights(n, weight.toInt, seed),
+                    n = args.getOption("--n").toInt,
+                    runs = args.getOption("--runs").toInt,
+                    tuningMask = args.getOption("--tuning"),
+                    filePrefix = args.getOption("--out-prefix"))
   }
 
-  private class LoggerWithLambdaProxy
-    extends IterationLogger[FAHD[Long]]
+  private class LoggerWithLambdaProxy[
+    @specialized(Specialization.fitnessSpecialization) F
+  ](maxDistanceToLog: Int)(implicit fitness2long: F => Long)
+    extends IterationLogger[FAHD[F]]
   {
     private[this] var lastLambda: Double = _
-    private[this] var lastFitness: Long = -1
+    private[this] var lastFitness: F = _
     private[this] val builder = new StringBuilder
+    private[this] var distanceToWrite, lastDistance: Int = -1
 
-    override def logIteration(evaluations: Long, fitness: FAHD[Long]): Unit = {
-      if (fitness.distance != 0 && fitness.fitness >= lastFitness) {
+    override def logIteration(evaluations: Long, fitness: FAHD[F]): Unit =
+      if (evaluations == 1) {
         lastFitness = fitness.fitness
-        builder.append("(").append(fitness.distance).append(",").append(lastLambda).append(")")
+        lastLambda = 1.0
+        if (fitness.distance <= maxDistanceToLog)
+          builder.append("(").append(fitness.distance).append(",").append(lastLambda).append(")")
+        lastDistance = fitness.distance
+      } else if (fitness.fitness > lastFitness) {
+        if (lastDistance <= maxDistanceToLog)
+          builder.append("(").append(lastDistance).append(",").append(lastLambda).append(")")
+        lastFitness = fitness.fitness
+        distanceToWrite = fitness.distance
+        lastDistance = fitness.distance
       }
-    }
 
     def result(): String = {
       val result = builder.result()
       builder.clear()
-      lastFitness = -1
       result
     }
 
@@ -59,6 +81,11 @@ object LambdaTraces extends Main.Module {
       private[this] val delegate = realTuning(size)
       override def lambda(rng: ThreadLocalRandom): Double = {
         lastLambda = delegate.lambda(rng)
+        if (distanceToWrite > 0) {
+          if (distanceToWrite <= maxDistanceToLog)
+            builder.append("(").append(distanceToWrite).append(",").append(lastLambda).append(")")
+          distanceToWrite = -1
+        }
         lastLambda
       }
 
@@ -69,41 +96,31 @@ object LambdaTraces extends Main.Module {
   }
 
   //noinspection SameParameterValue: IDEA wrongly reports `file` to have the same parameter value for interpolated arg
-  private def collectTraces(algorithm: (Long => LambdaTuning) => OnePlusLambdaLambdaGA,
-                            n: Int, runs: Int, weight: Int, file: String): Unit = {
+  private def collectTraces[
+    @specialized(Specialization.fitnessSpecialization) F
+  ](algorithm: (Long => LambdaTuning) => OnePlusLambdaLambdaGA,
+    problemInstanceGen: (Int, Long) => Fitness[Array[Boolean], F, Int],
+    n: Int, runs: Int, file: String)
+   (implicit fitness2long: F => Long): Unit = {
     Using.resource(new PrintWriter(file)) { out =>
-      val rng = new Random(n * 234234 + runs * 912645 + weight * 213425431 + file.hashCode)
-      val logger = new LoggerWithLambdaProxy
+      val rng = new Random(n * 234234 + runs * 912645 + file.hashCode)
+      val logger = new LoggerWithLambdaProxy[F](n / 2)
       for (_ <- 0 until runs) {
-        val problem = new LinearRandomIntegerWeights(n, weight, rng.nextLong()).withHammingDistanceTracking
+        val problem = problemInstanceGen(n, rng.nextLong()).withHammingDistanceTracking
         val oll = algorithm(logger.attachedTuning(defaultOneFifthLambda))
         oll.optimize(problem, logger)
-        out.println("\\addplot[black] coordinates {" + logger.result() + "};")
+        out.println("\\addplot[black,update limits=false] coordinates {" + logger.result() + "};")
       }
     }
   }
 
-  private def collectTraces(n: Int, runs: Int, weight: Int, filePrefix: String): Unit = {
-    val roundings = Seq(roundDownPopulationSize -> "down", roundUpPopulationSize -> "up", probabilisticPopulationSize -> "rnd")
-    val mutations = Seq(MutationStrength.Standard -> "std", MutationStrength.Resampling -> "res", MutationStrength.Shift -> "shf")
-    val crossovers = Seq(CrossoverStrength.StandardD -> "stdD", CrossoverStrength.StandardL -> "stdL",
-                         CrossoverStrength.ResamplingD -> "resD", CrossoverStrength.ResamplingL -> "resL",
-                         CrossoverStrength.ShiftD -> "shfD", CrossoverStrength.ShiftL -> "shfL")
-    val goodMutants = Seq(GoodMutantStrategy.Ignore -> "ignore", GoodMutantStrategy.SkipCrossover -> "skip",
-                          GoodMutantStrategy.DoNotCountIdentical -> "notcount", GoodMutantStrategy.DoNotSampleIdentical -> "notsample")
-    for ((rounding, roundingName) <- roundings;
-         (mutation, mutationName) <- mutations;
-         (crossover, crossoverName) <- crossovers;
-         (goodMutant, goodMutantName) <- goodMutants) {
-      collectTraces(gen => new OnePlusLambdaLambdaGA(gen,
-                                                     mutationStrength = mutation,
-                                                     crossoverStrength = crossover,
-                                                     goodMutantStrategy = goodMutant,
-                                                     populationRounding = rounding),
-                    n, runs, weight,
-                    s"$filePrefix-$roundingName-$mutationName-$crossoverName-$goodMutantName.tex")
-    }
-  }
+  private def collectTraces[
+    @specialized(Specialization.fitnessSpecialization) F
+  ](problemInstanceGen: (Int, Long) => Fitness[Array[Boolean], F, Int],
+    n: Int, runs: Int, tuningMask: String, filePrefix: String)
+   (implicit fitness2long: F => Long): Unit =
+    for ((algFun, code) <- AlgorithmCodeNames.parseOnePlusLambdaLambdaGenerators(tuningMask))
+      collectTraces(algFun, problemInstanceGen, n, runs, s"$filePrefix-$code.tex")
 
   private implicit class Options(val args: Array[String]) extends AnyVal {
     def getOption(option: String): String = {
