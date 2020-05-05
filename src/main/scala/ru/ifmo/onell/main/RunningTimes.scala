@@ -220,19 +220,23 @@ object RunningTimes extends Main.Module {
 
   private def bitsLinearSimple(context: Context, maxWeight: Double): Unit = {
     val algorithms = Seq(
-      "RLS" -> OnePlusOneEA.RLS,
-      "(1+1) EA" -> OnePlusOneEA.Resampling,
-      "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
-      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
-      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical),
+      ("RLS", OnePlusOneEA.RLS),
+      ("(1+1) EA", OnePlusOneEA.Standard),
+      ("(1+1) EA, aware", OnePlusOneEA.Shift),
+      ("(1+(λ,λ)) GA, λ=8", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore)),
+      ("(1+(λ,λ)) GA, λ<=n", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore)),
+      ("(1+(λ,λ)) GA, λ=8, aware", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical)),
+      ("(1+(λ,λ)) GA, λ<=n, aware", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical)),
     )
 
     val seeder = new Random(314252354)
     context.run { (scheduler, n) =>
       for ((name, alg) <- algorithms) {
         scheduler addTask {
+          val t0 = System.nanoTime()
           val time = alg.optimize(new LinearRandomDoubleWeights(n, maxWeight, seeder.nextLong()))
-          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          val wcTime = (System.nanoTime() - t0) * 1e-9
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n},"wall-clock time":$wcTime}"""
         }
       }
     }
