@@ -7,11 +7,10 @@ import java.util.concurrent.ThreadLocalRandom
 
 import scala.jdk.CollectionConverters._
 import scala.util.Using
-
 import ru.ifmo.onell.{HasIndividualOperations, Main}
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA}
-import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
+import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, LinearRandomIntegerWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
 import ru.ifmo.onell.util.par.{Executor, Multiplexer, ParallelExecutor, SequentialExecutor}
 
 object RunningTimes extends Main.Module {
@@ -25,9 +24,7 @@ object RunningTimes extends Main.Module {
     "  bits:om:sqrt    <context>: same but starting at the distance of sqrt(n) from the end",
     "  bits:om:log     <context>: same but starting at the distance of log(n+1) from the end",
     "  bits:om:lin     <context>: same but starting at the distance of q*n from the end, q is passed with --q option",
-    "  bits:l2d        <context>: for linear functions with random weights from [1;2]",
-    "  bits:l5d        <context>: for linear functions with random weights from [1;5]",
-    "  bits:sat        <context>: for the MAX-SAT problem with logarithmic density",
+    "  bits:sat        <context>: same for the MAX-SAT problem with logarithmic density",
     "  bits:sat:sqrt   <context>: same but starting at the distance of sqrt(n) from the end",
     "  bits:sat:log    <context>: same but starting at the distance of log(n+1) from the end",
     "  bits:sat:lin    <context>: same but starting at the distance of q*n from the end, q is passed with --q option",
@@ -40,6 +37,13 @@ object RunningTimes extends Main.Module {
     "  bits:l2d:tuning* <context> <file1>,<file2>,...: same for linear functions with random weights from [1;2]",
     "  bits:l5d:tuning* <context> <file1>,<file2>,...: same for linear functions with random weights from [1;5]",
     "  bits:sat:tuning* <context> <file1>,<file2>,...: same for the MAX-SAT problem with logarithmic density",
+    "  bits:l2d:lambda <context>: experiments for lambda tunings for linear functions with random real-valued weights from [1;2]",
+    "  bits:l5d:lambda <context>: same for linear functions with random real-valued weights from [1;5]",
+    "  bits:om:lambda  <context>: same for OneMax",
+    "  bits:l2i:lambda <context>: same for linear functions with random integer weights from [1;2]",
+    "  bits:l5i:lambda <context>: same for linear functions with random integer weights from [1;5]",
+    "  bits:lni:lambda <context>: same for linear functions with random integer weights from [1;n]",
+    "  bits:sat:lambda <context>: same for the MAX-SAT problem with logarithmic density",
     "The following commands run experiments for problems on permutations:",
     "  perm:om         <context>: for the permutation flavour of OneMax",
     "The <context> arguments, all mandatory, are:",
@@ -54,8 +58,13 @@ object RunningTimes extends Main.Module {
     case "bits:om"         => bitsOneMaxSimple(parseContext(args))
     case "bits:om:sqrt"    => bitsOneMaxAlmostOptimal(parseContext(args), n => math.sqrt(n))
     case "bits:om:log"     => bitsOneMaxAlmostOptimal(parseContext(args), n => math.log(n + 1))
-    case "bits:l2d"        => bitsLinearSimple(parseContext(args), 2.0)
-    case "bits:l5d"        => bitsLinearSimple(parseContext(args), 5.0)
+    case "bits:l2d:lambda" => bitsParameterTuningLinearDouble(parseContext(args), 2.0)
+    case "bits:l5d:lambda" => bitsParameterTuningLinearDouble(parseContext(args), 5.0)
+    case "bits:om:lambda"  => bitsParameterTuningLinearInteger(parseContext(args), _ => 1)
+    case "bits:l2i:lambda" => bitsParameterTuningLinearInteger(parseContext(args), _ => 2)
+    case "bits:l5i:lambda" => bitsParameterTuningLinearInteger(parseContext(args), _ => 5)
+    case "bits:lni:lambda" => bitsParameterTuningLinearInteger(parseContext(args), n => n)
+    case "bits:sat:lambda" => bitsParameterTuningMaxSAT(parseContext(args))
     case "bits:sat"        => bitsMaxSATSimple(parseContext(args))
     case "bits:sat:sqrt"   => bitsMaxSATAlmostOptimal(parseContext(args), n => math.sqrt(n))
     case "bits:sat:log"    => bitsMaxSATAlmostOptimal(parseContext(args), n => math.log(n + 1))
@@ -218,25 +227,66 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private def bitsLinearSimple(context: Context, maxWeight: Double): Unit = {
-    val algorithms = Seq(
-      ("RLS", OnePlusOneEA.RLS),
-      ("(1+1) EA", OnePlusOneEA.Standard),
-      ("(1+1) EA, aware", OnePlusOneEA.Shift),
-      ("(1+(λ,λ)) GA, λ=8", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore)),
-      ("(1+(λ,λ)) GA, λ<=n", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore)),
-      ("(1+(λ,λ)) GA, λ=8, aware", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical)),
-      ("(1+(λ,λ)) GA, λ<=n, aware", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical)),
-    )
+  private val parameterTuningExperimentAlgorithmSelectionDouble = Seq(
+    ("RLS", OnePlusOneEA.RLS),
+    ("(1+1) EA", OnePlusOneEA.Standard),
+    ("*(1+1) EA", OnePlusOneEA.Shift),
+    ("$\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, roundUpPopulationSize)),
+    ("$\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, roundUpPopulationSize)),
+    ("*$\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, roundUpPopulationSize)),
+    ("*$\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, roundUpPopulationSize)),
+  )
 
+  private val parameterTuningExperimentAlgorithmSelection = Seq(
+    ("RLS", OnePlusOneEA.RLS),
+    ("(1+1) EA", OnePlusOneEA.Standard),
+    ("*(1+1) EA", OnePlusOneEA.Shift),
+    ("$\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, probabilisticPopulationSize)),
+    ("$\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, probabilisticPopulationSize)),
+    ("$\\lambdabound\\sim\\ln n$", new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, probabilisticPopulationSize)),
+    ("*$\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, probabilisticPopulationSize)),
+    ("*$\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, probabilisticPopulationSize)),
+    ("*$\\lambdabound\\sim\\ln n$", new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, probabilisticPopulationSize)),
+  )
+
+  private def bitsParameterTuningLinearDouble(context: Context, maxWeight: Double): Unit = {
     val seeder = new Random(314252354)
     context.run { (scheduler, n) =>
-      for ((name, alg) <- algorithms) {
+      for ((name, alg) <- parameterTuningExperimentAlgorithmSelectionDouble) {
         scheduler addTask {
           val t0 = System.nanoTime()
           val time = alg.optimize(new LinearRandomDoubleWeights(n, maxWeight, seeder.nextLong()))
           val wcTime = (System.nanoTime() - t0) * 1e-9
           s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n},"wall-clock time":$wcTime}"""
+        }
+      }
+    }
+  }
+
+  private def bitsParameterTuningLinearInteger(context: Context, maxWeight: Int => Int): Unit = {
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- parameterTuningExperimentAlgorithmSelection) {
+        scheduler addTask {
+          val t0 = System.nanoTime()
+          val time = alg.optimize(new LinearRandomIntegerWeights(n, maxWeight(n), seeder.nextLong()))
+          val wcTime = (System.nanoTime() - t0) * 1e-9
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n},"wall-clock time":$wcTime}"""
+        }
+      }
+    }
+  }
+
+  private def bitsParameterTuningMaxSAT(context: Context): Unit = {
+    val seeder = new Random(314252354)
+    context.run { (scheduler, n) =>
+      val nClauses = (4 * n * math.log(n)).toInt
+      for ((name, alg) <- parameterTuningExperimentAlgorithmSelection) {
+        scheduler addTask {
+          val t0 = System.nanoTime()
+          val time = alg.optimize(new RandomPlanted3SAT(n, nClauses, RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
+          val consumed = (System.nanoTime() - t0) * 1e-9
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n},"wall-clock time":$consumed}"""
         }
       }
     }
