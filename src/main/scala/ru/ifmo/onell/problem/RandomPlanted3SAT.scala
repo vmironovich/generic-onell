@@ -12,7 +12,7 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int,
   extends Fitness[Array[Boolean], Int, Int]
 {
   private[this] val clauseVar = new Array[Int](clauseCount * 3)
-  private[this] val clauseVal = new Array[Boolean](clauseCount * 3)
+  private[this] val clauseVal = new Array[Int](clauseCount)
   private[this] val clausesOfVariableOffset = new Array[Int](problemSize + 1)
   private[this] val clausesOfVariableContent = new Array[Int](clauseCount * 3)
   private[this] val usedClauses = new DenseIntSet(clauseCount)
@@ -27,9 +27,10 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int,
     val i0 = clauseOffset
     val i1 = clauseOffset + 1
     val i2 = clauseOffset + 2
-    solution(clauseVar(i0)) == clauseVal(i0) ||
-      solution(clauseVar(i1)) == clauseVal(i1) ||
-      solution(clauseVar(i2)) == clauseVal(i2)
+    val v0 = if (solution(clauseVar(i0))) 1 else 0
+    val v1 = if (solution(clauseVar(i1))) 2 else 0
+    val v2 = if (solution(clauseVar(i2))) 4 else 0
+    ((v0 ^ v1 ^ v2) ^ clauseVal(clauseIndex)) != 7
   }
 
   @tailrec
@@ -39,8 +40,8 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int,
     clauseVar(offset) = i0
     clauseVar(offset + 1) = i1
     clauseVar(offset + 2) = i2
-    valueGenerator.generateThree(clauseVal, offset, rng)
-    assert(clauseVal(offset) || clauseVal(offset + 1) || clauseVal(offset + 2))
+    valueGenerator.generateThree(clauseVal, clauseIdx, rng)
+    assert(clauseVal(clauseIdx) != 0)
     clausesOfVariableOffset(i0) += 1
     clausesOfVariableOffset(i1) += 1
     clausesOfVariableOffset(i2) += 1
@@ -106,38 +107,20 @@ class RandomPlanted3SAT(val problemSize: Int, val clauseCount: Int,
 
 object RandomPlanted3SAT {
   trait ValueGenerator {
-    def generateThree(targetArray: Array[Boolean], offset: Int, rng: Random): Unit
+    def generateThree(targetArray: Array[Int], offset: Int, rng: Random): Unit
   }
 
   object EasyGenerator extends ValueGenerator {
-    @scala.annotation.tailrec
-    override def generateThree(targetArray: Array[Boolean], offset: Int, rng: Random): Unit = {
-      val v0, v1, v2 = rng.nextBoolean()
-      if (v0 || v1 || v2) {
-        targetArray(offset) = v0
-        targetArray(offset + 1) = v1
-        targetArray(offset + 2) = v2
-      } else {
-        generateThree(targetArray, offset, rng)
-      }
-    }
+    override def generateThree(targetArray: Array[Int], offset: Int, rng: Random): Unit =
+      targetArray(offset) = 1 + rng.nextInt(7)
   }
 
   object HardGenerator extends ValueGenerator {
-    override def generateThree(targetArray: Array[Boolean], offset: Int, rng: Random): Unit = {
-      rng.nextInt(6) match {
-        case 0 =>
-          targetArray(offset) = true
-          targetArray(offset + 1) = true
-          targetArray(offset + 2) = true
-        case 1 =>
-          targetArray(offset) = true
-          targetArray(offset + 1) = true
-          targetArray(offset + 2) = true
-          targetArray(offset + rng.nextInt(3)) = false
-        case _ =>
-          targetArray(offset + rng.nextInt(3)) = true
+    override def generateThree(targetArray: Array[Int], offset: Int, rng: Random): Unit =
+      targetArray(offset) = rng.nextInt(6) match {
+        case 0 => 7
+        case 1 => 7 - (1 << rng.nextInt(3))
+        case _ => 1 << rng.nextInt(3)
       }
-    }
   }
 }
