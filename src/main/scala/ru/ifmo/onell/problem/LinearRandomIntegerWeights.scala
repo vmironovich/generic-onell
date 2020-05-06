@@ -10,7 +10,7 @@ class LinearRandomIntegerWeights(val problemSize: Int, val maxWeight: Int, rando
 {
   private[this] val rng = new Random(randomSeed)
   private[this] val weights = Array.fill(problemSize)(rng.nextInt(maxWeight) + 1)
-  private[this] val weightSum = weights.sum
+  private[this] val weightSum = weights.view.map(_.toLong).sum
 
   override def evaluate(individual: Array[Boolean]): Long = {
     var i = individual.length - 1
