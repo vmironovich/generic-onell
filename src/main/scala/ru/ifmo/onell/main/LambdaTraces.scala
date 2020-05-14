@@ -31,7 +31,7 @@ object LambdaTraces extends Main.Module {
   ) ++ AlgorithmCodeNames.parserDescriptionForOnePlusLambdaLambdaGenerators("--tuning")
 
   override def moduleMain(args: Array[String]): Unit = {
-    val weight = args.getOption("--weight")
+    val weight = args.getOption("--problem")
     if (weight == "SAT")
       collectTraces((n, seed) => new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt, RandomPlanted3SAT.EasyGenerator, seed),
                     n = args.getOption("--n").toInt,
