@@ -58,16 +58,17 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
       runMutationsEtc(remaining - 1, baseFitness, change, currentFitness)
     }
 
-    def updateOnCrossover(result: Aux[F], currFitness: F, source: OrderedSet[C], testedQueries: Int): Unit = {
-      if (testedQueries == 0 || fitness.compare(currFitness, result.fitness) > 0) {
-        // A special hack: if source is crossoverBest, this means to clear crossoverBest.
-        if (crossoverBest == source)
-          crossoverBest.clear()
-        else
-          crossoverBest.copyFrom(source)
+    def updateOnParent(result: Aux[F], currFitness: F, isFirstTime: Boolean): Unit =
+      if (isFirstTime || fitness.compare(currFitness, result.fitness) > 0) {
+        crossoverBest.clear()
         result.fitness = currFitness
       }
-    }
+
+    def updateOnCrossover(result: Aux[F], currFitness: F, source: OrderedSet[C], isFirstTime: Boolean): Unit =
+      if (isFirstTime || fitness.compare(currFitness, result.fitness) > 0) {
+        crossoverBest.copyFrom(source)
+        result.fitness = currFitness
+      }
 
     def runCrossover(remaining: Int, baseFitness: F, mutantFitness: F, mutantDistance: Int,
                      distribution: IntegerDistribution, result: Aux[F]): Int = {
@@ -75,18 +76,17 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
       while (triedQueries < remaining) {
         val distance = distribution.sample(rng)
         if (distance == 0) {
-          //                 this means "clear": vvvvvvvvvvvvv
-          updateOnCrossover(result, baseFitness, crossoverBest, testedQueries)
+          updateOnParent(result, baseFitness, testedQueries == 0)
           testedQueries += 1
           triedQueries += 1
         } else if (distance == mutantDistance) {
-          updateOnCrossover(result, mutantFitness, mutationBest, testedQueries)
+          updateOnCrossover(result, mutantFitness, mutationBest, testedQueries == 0)
           triedQueries += goodMutantStrategy.incrementForTriedQueries
           testedQueries += goodMutantStrategy.incrementForTestedQueries
         } else {
           deltaOps.initializeDeltaFromExisting(crossover, mutationBest, distance, rng)
           val newFitness = fitness.evaluateAssumingDelta(individual, crossover, baseFitness)
-          updateOnCrossover(result, newFitness, crossover, testedQueries)
+          updateOnCrossover(result, newFitness, crossover, testedQueries == 0)
           triedQueries += 1
           testedQueries += 1
         }
