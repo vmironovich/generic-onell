@@ -17,8 +17,8 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
                             mutationStrength: MutationStrength,
                             crossoverStrength: CrossoverStrength,
                             goodMutantStrategy: GoodMutantStrategy,
-                            constantTuning: ConstantTuning = defaultTuning,
-                            populationRounding: PopulationSizeRounding = OnePlusLambdaLambdaGA.PopulationSizeRounding.alwaysDown)
+                            populationRounding: PopulationSizeRounding,
+                            constantTuning: ConstantTuning = defaultTuning)
   extends Optimizer
 {
   override def optimize[I, @sp(fsp) F, @sp(csp) C]

@@ -69,20 +69,24 @@ object FixedBudget extends Main.Module {
     ("uncapped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda),
                                                         mutationStrength = MutationStrength.Standard,
                                                         crossoverStrength = CrossoverStrength.StandardL,
-                                                        goodMutantStrategy = GoodMutantStrategy.Ignore)),
+                                                        goodMutantStrategy = GoodMutantStrategy.Ignore,
+                                                        populationRounding = PopulationSizeRounding.alwaysDown)),
     ("uncapped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(defaultOneFifthLambda),
                                                       mutationStrength = MutationStrength.Resampling,
                                                       crossoverStrength = CrossoverStrength.ResamplingL,
-                                                      goodMutantStrategy = GoodMutantStrategy.DoNotCountIdentical)),
+                                                      goodMutantStrategy = GoodMutantStrategy.DoNotCountIdentical,
+                                                      populationRounding = PopulationSizeRounding.alwaysDown)),
     ("capped unaware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda),
                                                       mutationStrength = MutationStrength.Standard,
                                                       crossoverStrength = CrossoverStrength.StandardL,
-                                                      goodMutantStrategy = GoodMutantStrategy.Ignore)),
+                                                      goodMutantStrategy = GoodMutantStrategy.Ignore,
+                                                      populationRounding = PopulationSizeRounding.alwaysDown)),
     ("capped aware", t => new OnePlusLambdaLambdaGA(t.attachedTuning(logCappedOneFifthLambda),
                                                     mutationStrength = MutationStrength.Resampling,
                                                     crossoverStrength = CrossoverStrength.ResamplingL,
-                                                    goodMutantStrategy = GoodMutantStrategy.DoNotCountIdentical)),
-  )
+                                                    goodMutantStrategy = GoodMutantStrategy.DoNotCountIdentical,
+                                                    populationRounding = PopulationSizeRounding.alwaysDown)),
+    )
 
   private def runHardSat(problemSizes: Seq[Int]): Unit = {
     def nClausesFun(problemSize: Int) = (problemSize * 4.27).toInt
