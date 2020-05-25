@@ -4,6 +4,7 @@ import java.util.concurrent.{ThreadLocalRandom => Random}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.language.implicitConversions
 import scala.util.chaining._
 import scala.{specialized => sp}
 
@@ -191,6 +192,10 @@ object OnePlusLambdaLambdaGA {
       val upper = math.ceil(fpValue).toInt
       if (lower == upper || rng.nextDouble() < upper - fpValue) lower else upper
     }
+
+    implicit def u2alwaysUp(dummy: 'U'): PopulationSizeRounding = alwaysUp
+    implicit def d2alwaysDown(dummy: 'D'): PopulationSizeRounding = alwaysDown
+    implicit def p2probabilistic(dummy: 'P'): PopulationSizeRounding = probabilistic
   }
 
   trait MutationStrength {
@@ -201,6 +206,10 @@ object OnePlusLambdaLambdaGA {
     final val Standard: MutationStrength = (n, l) => BinomialDistribution(n, l / n)
     final val Resampling: MutationStrength = (n, l) => if (l < probEps) 1 else BinomialDistribution(n, l / n).filter(_ > 0)
     final val Shift: MutationStrength = (n, l) => BinomialDistribution(n, l / n).max(1)
+
+    implicit def s2standard(dummy: 'S'): MutationStrength = Standard
+    implicit def r2resampling(dummy: 'R'): MutationStrength = Resampling
+    implicit def h2shift(dummy: 'H'): MutationStrength = Shift
   }
 
   trait CrossoverStrength {
@@ -267,6 +276,11 @@ object OnePlusLambdaLambdaGA {
       override def incrementForTestedQueries: Int = 0
       override def incrementForTriedQueries: Int = 0
     }
+
+    implicit def i2ignore(dummy: 'I'): GoodMutantStrategy = Ignore
+    implicit def s2skip(dummy: 'S'): GoodMutantStrategy = SkipCrossover
+    implicit def c2doNotCount(dummy: 'C'): GoodMutantStrategy = DoNotCountIdentical
+    implicit def m2doNotSample(dummy: 'M'): GoodMutantStrategy = DoNotSampleIdentical
   }
 
   //noinspection ScalaUnusedSymbol

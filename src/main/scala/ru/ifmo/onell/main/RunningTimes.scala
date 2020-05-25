@@ -114,18 +114,18 @@ object RunningTimes extends Main.Module {
     val algorithms = Seq(
       "RLS" -> OnePlusOneEA.RLS,
       "(1+1) EA" -> OnePlusOneEA.Resampling,
-      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ=6" -> new OnePlusLambdaLambdaGA(fixedLambda(6), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ=10" -> new OnePlusLambdaLambdaGA(fixedLambda(10), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ=12" -> new OnePlusLambdaLambdaGA(fixedLambda(12), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ=fixed optimal" -> new OnePlusLambdaLambdaGA(fixedLogTowerLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ=6" -> new OnePlusLambdaLambdaGA(fixedLambda(6), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ=10" -> new OnePlusLambdaLambdaGA(fixedLambda(10), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ=12" -> new OnePlusLambdaLambdaGA(fixedLambda(12), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ=fixed optimal" -> new OnePlusLambdaLambdaGA(fixedLogTowerLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
     )
 
     context.run { (scheduler, n) =>
@@ -142,13 +142,13 @@ object RunningTimes extends Main.Module {
     val algorithms = Seq(
       "RLS" -> OnePlusOneEA.RLS,
       "(1+1) EA" -> OnePlusOneEA.Resampling,
-      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
-      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysDown),
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), 'R', CrossoverStrength.ResamplingL, 'C', 'D'),
     )
 
     context.run { (scheduler, n) =>
@@ -193,7 +193,7 @@ object RunningTimes extends Main.Module {
     } yield {
       val jsonNamePart = s""""lambda":"$l","mutation":"$m","crossover":"$c","good mutant":"$g","rounding":"$r""""
       val algGenerator = () => new OnePlusLambdaLambdaGA(lambdaStrategy, mutationStrength, crossoverStrength,
-                                                         goodMutantStrategy, populationRounding = rounding)
+                                                         goodMutantStrategy, rounding)
       jsonNamePart -> algGenerator
     }
   }
@@ -234,22 +234,22 @@ object RunningTimes extends Main.Module {
     ("RLS", OnePlusOneEA.RLS),
     ("(1+1) EA", OnePlusOneEA.Standard),
     ("*(1+1) EA", OnePlusOneEA.Shift),
-    ("$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, PopulationSizeRounding.alwaysUp)),
-    ("$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, PopulationSizeRounding.alwaysUp)),
-    ("*$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
-    ("*$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
+    ("$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), 'S', CrossoverStrength.StandardL, 'I', 'U')),
+    ("$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'S', CrossoverStrength.StandardL, 'I', 'U')),
+    ("*$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), 'H', CrossoverStrength.ShiftD, 'C', 'U')),
+    ("*$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'H', CrossoverStrength.ShiftD, 'C', 'U')),
   )
 
   private val parameterTuningExperimentAlgorithmSelection = Seq(
     ("RLS", OnePlusOneEA.RLS),
     ("(1+1) EA", OnePlusOneEA.Standard),
     ("*(1+1) EA", OnePlusOneEA.Shift),
-    ("$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, PopulationSizeRounding.probabilistic)),
-    ("$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, PopulationSizeRounding.probabilistic)),
-    ("$\\\\lambdabound\\\\sim\\\\ln n$", new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, PopulationSizeRounding.probabilistic)),
-    ("*$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.probabilistic)),
-    ("*$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.probabilistic)),
-    ("*$\\\\lambdabound\\\\sim\\\\ln n$", new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.probabilistic)),
+    ("$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), 'S', CrossoverStrength.StandardL, 'I', 'P')),
+    ("$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'S', CrossoverStrength.StandardL, 'I', 'P')),
+    ("$\\\\lambdabound\\\\sim\\\\ln n$", new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'S', CrossoverStrength.StandardL, 'I', 'P')),
+    ("*$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), 'H', CrossoverStrength.ShiftD, 'C', 'P')),
+    ("*$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'H', CrossoverStrength.ShiftD, 'C', 'P')),
+    ("*$\\\\lambdabound\\\\sim\\\\ln n$", new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'H', CrossoverStrength.ShiftD, 'C', 'P')),
   )
 
   private def bitsParameterTuningLinearDouble(context: Context, maxWeight: Double): Unit = {
@@ -333,13 +333,13 @@ object RunningTimes extends Main.Module {
     val algorithms = Seq(
       "RLS" -> OnePlusOneEA.RLS,
       "(1+1) EA" -> OnePlusOneEA.Resampling,
-      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp),
-      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp),
-      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp),
-      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp),
-      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp),
-      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp),
-      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp),
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'U'),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'U'),
+      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), 'R', CrossoverStrength.ResamplingL, 'C', 'U'),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), 'R', CrossoverStrength.ResamplingL, 'C', 'U'),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), 'R', CrossoverStrength.ResamplingL, 'C', 'U'),
+      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), 'R', CrossoverStrength.ResamplingL, 'C', 'U'),
+      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), 'R', CrossoverStrength.ResamplingL, 'C', 'U'),
     )
 
     val seeder = new Random(314252354)
@@ -396,13 +396,13 @@ object RunningTimes extends Main.Module {
     val algorithms = Seq(
       ("RLS", Int.MaxValue, OnePlusOneEA.RLS),
       ("(1+1) EA", Int.MaxValue, OnePlusOneEA.Resampling),
-      ("(1+(λ,λ)) GA, λ<=n", 16384, new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
-      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
-      ("(1+(λ,λ)) GA, λ~pow(2.1)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.1), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
-      ("(1+(λ,λ)) GA, λ~pow(2.3)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.3), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
-      ("(1+(λ,λ)) GA, λ~pow(2.5)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.5), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
-      ("(1+(λ,λ)) GA, λ~pow(2.7)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.7), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
-      ("(1+(λ,λ)) GA, λ~pow(2.9)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.9), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
+      ("(1+(λ,λ)) GA, λ<=n", 16384, new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'U')),
+      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'U')),
+      ("(1+(λ,λ)) GA, λ~pow(2.1)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.1), 'R', CrossoverStrength.ResamplingL, 'C', 'U')),
+      ("(1+(λ,λ)) GA, λ~pow(2.3)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.3), 'R', CrossoverStrength.ResamplingL, 'C', 'U')),
+      ("(1+(λ,λ)) GA, λ~pow(2.5)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.5), 'R', CrossoverStrength.ResamplingL, 'C', 'U')),
+      ("(1+(λ,λ)) GA, λ~pow(2.7)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.7), 'R', CrossoverStrength.ResamplingL, 'C', 'U')),
+      ("(1+(λ,λ)) GA, λ~pow(2.9)", Int.MaxValue, new OnePlusLambdaLambdaGA(powerLawLambda(2.9), 'R', CrossoverStrength.ResamplingL, 'C', 'U')),
     )
 
     val seeder = new Random(314252354)
@@ -426,10 +426,10 @@ object RunningTimes extends Main.Module {
     val algorithms = Seq(
       ("RLS", Int.MaxValue, OnePlusOneEA.RLS),
       ("(1+1) EA", Int.MaxValue, OnePlusOneEA.Resampling),
-      ("(1+(λ,λ)) GA, λ=10", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLambda(10), MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
-      ("(1+(λ,λ)) GA, λ=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLogLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
-      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
-      ("(1+(λ,λ)) GA, λ<=n", 256, new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Resampling, CrossoverStrength.ResamplingL, GoodMutantStrategy.DoNotCountIdentical, PopulationSizeRounding.alwaysUp)),
+      ("(1+(λ,λ)) GA, λ=10", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLambda(10), 'R', CrossoverStrength.ResamplingL, 'C', 'U')),
+      ("(1+(λ,λ)) GA, λ=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLogLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'U')),
+      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'U')),
+      ("(1+(λ,λ)) GA, λ<=n", 256, new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', CrossoverStrength.ResamplingL, 'C', 'U')),
     )
 
     context.run { (scheduler, n) =>
