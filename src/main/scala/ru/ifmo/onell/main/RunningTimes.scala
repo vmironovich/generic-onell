@@ -181,9 +181,9 @@ object RunningTimes extends Main.Module {
                                    "skip crossover" -> GoodMutantStrategy.SkipCrossover,
                                    "do not count identical" -> GoodMutantStrategy.DoNotCountIdentical,
                                    "do not sample identical" -> GoodMutantStrategy.DoNotSampleIdentical)
-    val populationSizeRoundings = Seq("round down" -> PopulationSizeRounding.alwaysDown,
-                                      "round up" -> PopulationSizeRounding.alwaysUp,
-                                      "probabilistic" -> PopulationSizeRounding.probabilistic)
+    val populationSizeRoundings = Seq("round down" -> PopulationSizeRounding.AlwaysDown,
+                                      "round up" -> PopulationSizeRounding.AlwaysUp,
+                                      "probabilistic" -> PopulationSizeRounding.Probabilistic)
     for {
       (l, lambdaStrategy) <- lambdaStrategies
       (m, mutationStrength) <- mutationStrengths

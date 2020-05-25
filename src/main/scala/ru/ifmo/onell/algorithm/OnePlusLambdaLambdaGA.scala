@@ -185,17 +185,17 @@ object OnePlusLambdaLambdaGA {
   }
 
   object PopulationSizeRounding {
-    final val alwaysUp: PopulationSizeRounding = (fpValue: Double, _: Random) => math.ceil(fpValue).toInt
-    final val alwaysDown: PopulationSizeRounding = (fpValue: Double, _: Random) => fpValue.toInt
-    final val probabilistic: PopulationSizeRounding = (fpValue: Double, rng: Random) => {
+    final val AlwaysUp: PopulationSizeRounding = (fpValue: Double, _: Random) => math.ceil(fpValue).toInt
+    final val AlwaysDown: PopulationSizeRounding = (fpValue: Double, _: Random) => fpValue.toInt
+    final val Probabilistic: PopulationSizeRounding = (fpValue: Double, rng: Random) => {
       val lower = math.floor(fpValue).toInt
       val upper = math.ceil(fpValue).toInt
       if (lower == upper || rng.nextDouble() < upper - fpValue) lower else upper
     }
 
-    implicit def u2alwaysUp(dummy: 'U'): PopulationSizeRounding = alwaysUp
-    implicit def d2alwaysDown(dummy: 'D'): PopulationSizeRounding = alwaysDown
-    implicit def p2probabilistic(dummy: 'P'): PopulationSizeRounding = probabilistic
+    implicit def u2alwaysUp(dummy: 'U'): PopulationSizeRounding = AlwaysUp
+    implicit def d2alwaysDown(dummy: 'D'): PopulationSizeRounding = AlwaysDown
+    implicit def p2probabilistic(dummy: 'P'): PopulationSizeRounding = Probabilistic
   }
 
   trait MutationStrength {

@@ -188,9 +188,9 @@ object IRaceClient extends Main.Module {
 
   private def parseRounding(args: Array[String]): ParameterAndJson[PopulationSizeRounding] = {
     args.getOption("--popsize-rounding") match {
-      case "round-up" => ParameterAndJson(PopulationSizeRounding.alwaysUp, """"rounding":"round up"""")
-      case "round-down" => ParameterAndJson(PopulationSizeRounding.alwaysDown, """"rounding":"round down"""")
-      case "probabilistic" => ParameterAndJson(PopulationSizeRounding.probabilistic, """"rounding":"probabilistic"""")
+      case "round-up" => ParameterAndJson(PopulationSizeRounding.AlwaysUp, """"rounding":"round up"""")
+      case "round-down" => ParameterAndJson(PopulationSizeRounding.AlwaysDown, """"rounding":"round down"""")
+      case "probabilistic" => ParameterAndJson(PopulationSizeRounding.Probabilistic, """"rounding":"probabilistic"""")
     }
   }
 
