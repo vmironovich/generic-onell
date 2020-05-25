@@ -8,7 +8,7 @@ object AlgorithmCodeNames {
     'S' -> MutationStrength.Standard,
     'H' -> MutationStrength.Shift,
     'R' -> MutationStrength.Resampling,
-    )
+  )
 
   private def expandMutationDistribution(char: Char): Seq[Char] = char match {
     case 'S' => "S"
@@ -48,7 +48,7 @@ object AlgorithmCodeNames {
     'S' -> GoodMutantStrategy.SkipCrossover,
     'C' -> GoodMutantStrategy.DoNotCountIdentical,
     'M' -> GoodMutantStrategy.DoNotSampleIdentical,
-    )
+  )
 
   private def expandGoodMutantStrategy(c: Char): Seq[Char] = c match {
     case 'I' => "I"
