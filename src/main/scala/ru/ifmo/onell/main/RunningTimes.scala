@@ -2,7 +2,7 @@ package ru.ifmo.onell.main
 
 import java.io.PrintWriter
 import java.nio.file.{Files, Paths}
-import java.util.Random
+import java.util.{Arrays => JArrays, Random}
 import java.util.concurrent.ThreadLocalRandom
 
 import scala.jdk.CollectionConverters._
@@ -23,11 +23,13 @@ object RunningTimes extends Main.Module {
     "  bits:om         <context>: for OneMax",
     "  bits:om:sqrt    <context>: same but starting at the distance of sqrt(n) from the end",
     "  bits:om:log     <context>: same but starting at the distance of log(n+1) from the end",
-    "  bits:om:lin     <context>: same but starting at the distance of q*n from the end, q is passed with --q option",
+    "  bits:om:lin     <context>: same but starting at the distance of d from the end, d is passed with --d option",
+    "                             (several values may be passed comma-separated)",
     "  bits:sat        <context>: same for the MAX-SAT problem with logarithmic density",
     "  bits:sat:sqrt   <context>: same but starting at the distance of sqrt(n) from the end",
     "  bits:sat:log    <context>: same but starting at the distance of log(n+1) from the end",
-    "  bits:sat:lin    <context>: same but starting at the distance of q*n from the end, q is passed with --q option",
+    "  bits:sat:lin    <context>: same but starting at the distance of d from the end, d is passed with --d option",
+    "                             (several values may be passed comma-separated)",
     "  bits:om:tuning  <context>: for OneMax with various tuning choices for the (1+(λ,λ)) GA",
     "  bits:l2d:tuning <context>: same for linear functions with random weights from [1;2]",
     "  bits:l5d:tuning <context>: same for linear functions with random weights from [1;5]",
@@ -56,8 +58,8 @@ object RunningTimes extends Main.Module {
 
   override def moduleMain(args: Array[String]): Unit = args(0) match {
     case "bits:om"         => bitsOneMaxSimple(parseContext(args))
-    case "bits:om:sqrt"    => bitsOneMaxAlmostOptimal(parseContext(args), n => math.sqrt(n))
-    case "bits:om:log"     => bitsOneMaxAlmostOptimal(parseContext(args), n => math.log(n + 1))
+    case "bits:om:sqrt"    => bitsOneMaxAlmostOptimal(parseContext(args), n => Seq(math.sqrt(n).toInt))
+    case "bits:om:log"     => bitsOneMaxAlmostOptimal(parseContext(args), n => Seq(math.log(n + 1).toInt))
     case "bits:l2d:lambda" => bitsParameterTuningLinearDouble(parseContext(args), 2.0)
     case "bits:l5d:lambda" => bitsParameterTuningLinearDouble(parseContext(args), 5.0)
     case "bits:om:lambda"  => bitsParameterTuningLinearInteger(parseContext(args), _ => 1)
@@ -66,8 +68,8 @@ object RunningTimes extends Main.Module {
     case "bits:lni:lambda" => bitsParameterTuningLinearInteger(parseContext(args), n => n)
     case "bits:sat:lambda" => bitsParameterTuningMaxSAT(parseContext(args))
     case "bits:sat"        => bitsMaxSATSimple(parseContext(args))
-    case "bits:sat:sqrt"   => bitsMaxSATAlmostOptimal(parseContext(args), n => math.sqrt(n))
-    case "bits:sat:log"    => bitsMaxSATAlmostOptimal(parseContext(args), n => math.log(n + 1))
+    case "bits:sat:sqrt"   => bitsMaxSATAlmostOptimal(parseContext(args), n => Seq(math.sqrt(n).toInt))
+    case "bits:sat:log"    => bitsMaxSATAlmostOptimal(parseContext(args), n => Seq(math.log(n + 1).toInt))
     case "perm:om"         => permOneMaxSimple(parseContext(args))
     case "bits:om:tuning"  => bitsOneMaxAllTuningChoices(parseContext(args))
     case "bits:l2d:tuning" => bitsLinearTunings(parseContext(args), 2.0)
@@ -78,11 +80,11 @@ object RunningTimes extends Main.Module {
     case "bits:l5d:tuning*" => bitsLinearDoubleIRacedTuningChoices(parseContext(args), 5.0, args.getOption("--files"))
     case "bits:sat:tuning*" => bitsMaxSatIRacedTuningChoices(parseContext(args), args.getOption("--files"))
     case "bits:om:lin" =>
-      val q = args.getOption("--q").toDouble
-      bitsOneMaxAlmostOptimal(parseContext(args), n => n * q)
+      val distances = args.getOption("--d").split(',').toIndexedSeq.map(_.toInt)
+      bitsOneMaxAlmostOptimal(parseContext(args), _ => distances)
     case "bits:sat:lin" =>
-      val q = args.getOption("--q").toDouble
-      bitsMaxSATAlmostOptimal(parseContext(args), n => n * q)
+      val distances = args.getOption("--d").split(',').toIndexedSeq.map(_.toInt)
+      bitsMaxSATAlmostOptimal(parseContext(args), _ => distances)
   }
 
   private class Context(powers: Range, nRuns: Int, nThreads: Int, outName: String) {
@@ -136,9 +138,7 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private def bitsOneMaxAlmostOptimal(context: Context, start: Int => Double): Unit = {
-    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = new StartFromDistance(start)
-
+  private def bitsOneMaxAlmostOptimal(context: Context, startValues: Int => Seq[Int]): Unit = {
     val algorithms = Seq(
       "RLS" -> OnePlusOneEA.RLS,
       "(1+1) EA" -> OnePlusOneEA.Resampling,
@@ -153,9 +153,12 @@ object RunningTimes extends Main.Module {
 
     context.run { (scheduler, n) =>
       for ((name, alg) <- algorithms) {
-        scheduler addTask {
-          val time = alg.optimize(new OneMax(n))(indOps = almostOptimalBitStringOps, deltaOps = implicitly)
-          s"""{"n":$n,"algorithm":"$name","runtime":$time,"expected initial distance":${start(n)},"runtime over n":${time.toDouble / n}}"""
+        for (sv <- startValues(n)) {
+          implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = new StartFromDistance(sv)
+          scheduler addTask {
+            val time = alg.optimize(new OneMax(n))(indOps = almostOptimalBitStringOps, deltaOps = implicitly)
+            s"""{"n":$n,"algorithm":"$name","runtime":$time,"expected initial distance":$sv,"runtime over n":${time.toDouble / n}}"""
+          }
         }
       }
     }
@@ -389,9 +392,7 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private def bitsMaxSATAlmostOptimal(context: Context, start: Int => Double): Unit = {
-    implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = new StartFromDistance(start)
-
+  private def bitsMaxSATAlmostOptimal(context: Context, startValues: Int => Seq[Int]): Unit = {
     val algorithms = Seq(
       ("RLS", Int.MaxValue, OnePlusOneEA.RLS),
       ("(1+1) EA", Int.MaxValue, OnePlusOneEA.Resampling),
@@ -408,10 +409,13 @@ object RunningTimes extends Main.Module {
     context.run { (scheduler, n) =>
       for ((name, limit, alg) <- algorithms) {
         if (n <= limit) {
-          scheduler addTask {
-            val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt,
-                                                          RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
-            s"""{"n":$n,"algorithm":"$name","runtime":$time,"expected initial distance":${start(n)},"runtime over n":${time.toDouble / n}}"""
+          for (sv <- startValues(n)) {
+            implicit val almostOptimalBitStringOps: HasIndividualOperations[Array[Boolean]] = new StartFromDistance(sv)
+            scheduler addTask {
+              val time = alg.optimize(new RandomPlanted3SAT(n, (4 * n * math.log(n)).toInt,
+                                                            RandomPlanted3SAT.EasyGenerator, seeder.nextLong()))
+              s"""{"n":$n,"algorithm":"$name","runtime":$time,"initial distance":$sv,"runtime over n":${time.toDouble / n}}"""
+            }
           }
         }
       }
@@ -449,15 +453,18 @@ object RunningTimes extends Main.Module {
     }
   }
 
-  private class StartFromDistance(start: Int => Double) extends HasIndividualOperations[Array[Boolean]] {
+  private class StartFromDistance(start: Int) extends HasIndividualOperations[Array[Boolean]] {
     override def createStorage(problemSize: Int): Array[Boolean] = new Array(problemSize)
     override def initializeRandomly(individual: Array[Boolean], rng: ThreadLocalRandom): Unit = {
-      val distance = start(individual.length)
-      val probabilityOfZero = distance / individual.length
-      var i = individual.length
-      while (i > 0) {
-        i -= 1
-        individual(i) = rng.nextDouble() >= probabilityOfZero
+      var remainingPoints = start
+      val len = individual.length
+      JArrays.fill(individual, true)
+      while (remainingPoints > 0) {
+        val idx = rng.nextInt(len)
+        if (individual(idx)) {
+          individual(idx) = false
+          remainingPoints -= 1
+        }
       }
     }
   }
