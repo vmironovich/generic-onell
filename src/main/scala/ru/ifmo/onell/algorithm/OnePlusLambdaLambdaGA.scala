@@ -18,7 +18,7 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
                             crossoverStrength: CrossoverStrength,
                             goodMutantStrategy: GoodMutantStrategy,
                             constantTuning: ConstantTuning = defaultTuning,
-                            populationRounding: PopulationSizeRounding = roundDownPopulationSize)
+                            populationRounding: PopulationSizeRounding = OnePlusLambdaLambdaGA.PopulationSizeRounding.alwaysDown)
   extends Optimizer
 {
   override def optimize[I, @sp(fsp) F, @sp(csp) C]
@@ -183,12 +183,14 @@ object OnePlusLambdaLambdaGA {
     def apply(fpValue: Double, rng: Random): Int
   }
 
-  final val roundUpPopulationSize: PopulationSizeRounding = (fpValue: Double, _: Random) => math.ceil(fpValue).toInt
-  final val roundDownPopulationSize: PopulationSizeRounding = (fpValue: Double, _: Random) => fpValue.toInt
-  final val probabilisticPopulationSize: PopulationSizeRounding = (fpValue: Double, rng: Random) => {
-    val lower = math.floor(fpValue).toInt
-    val upper = math.ceil(fpValue).toInt
-    if (lower == upper || rng.nextDouble() < upper - fpValue) lower else upper
+  object PopulationSizeRounding {
+    final val alwaysUp: PopulationSizeRounding = (fpValue: Double, _: Random) => math.ceil(fpValue).toInt
+    final val alwaysDown: PopulationSizeRounding = (fpValue: Double, _: Random) => fpValue.toInt
+    final val probabilistic: PopulationSizeRounding = (fpValue: Double, rng: Random) => {
+      val lower = math.floor(fpValue).toInt
+      val upper = math.ceil(fpValue).toInt
+      if (lower == upper || rng.nextDouble() < upper - fpValue) lower else upper
+    }
   }
 
   trait MutationStrength {

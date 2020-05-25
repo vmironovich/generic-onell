@@ -181,9 +181,9 @@ object RunningTimes extends Main.Module {
                                    "skip crossover" -> GoodMutantStrategy.SkipCrossover,
                                    "do not count identical" -> GoodMutantStrategy.DoNotCountIdentical,
                                    "do not sample identical" -> GoodMutantStrategy.DoNotSampleIdentical)
-    val populationSizeRoundings = Seq("round down" -> roundDownPopulationSize,
-                                      "round up" -> roundUpPopulationSize,
-                                      "probabilistic" -> probabilisticPopulationSize)
+    val populationSizeRoundings = Seq("round down" -> PopulationSizeRounding.alwaysDown,
+                                      "round up" -> PopulationSizeRounding.alwaysUp,
+                                      "probabilistic" -> PopulationSizeRounding.probabilistic)
     for {
       (l, lambdaStrategy) <- lambdaStrategies
       (m, mutationStrength) <- mutationStrengths
@@ -234,22 +234,22 @@ object RunningTimes extends Main.Module {
     ("RLS", OnePlusOneEA.RLS),
     ("(1+1) EA", OnePlusOneEA.Standard),
     ("*(1+1) EA", OnePlusOneEA.Shift),
-    ("$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, roundUpPopulationSize)),
-    ("$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, roundUpPopulationSize)),
-    ("*$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, roundUpPopulationSize)),
-    ("*$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, roundUpPopulationSize)),
+    ("$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, PopulationSizeRounding.alwaysUp)),
+    ("$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, PopulationSizeRounding.alwaysUp)),
+    ("*$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, PopulationSizeRounding.alwaysUp)),
+    ("*$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, PopulationSizeRounding.alwaysUp)),
   )
 
   private val parameterTuningExperimentAlgorithmSelection = Seq(
     ("RLS", OnePlusOneEA.RLS),
     ("(1+1) EA", OnePlusOneEA.Standard),
     ("*(1+1) EA", OnePlusOneEA.Shift),
-    ("$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, probabilisticPopulationSize)),
-    ("$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, probabilisticPopulationSize)),
-    ("$\\\\lambdabound\\\\sim\\\\ln n$", new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, probabilisticPopulationSize)),
-    ("*$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, probabilisticPopulationSize)),
-    ("*$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, probabilisticPopulationSize)),
-    ("*$\\\\lambdabound\\\\sim\\\\ln n$", new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, probabilisticPopulationSize)),
+    ("$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, PopulationSizeRounding.probabilistic)),
+    ("$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, PopulationSizeRounding.probabilistic)),
+    ("$\\\\lambdabound\\\\sim\\\\ln n$", new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Standard, CrossoverStrength.StandardL, GoodMutantStrategy.Ignore, defaultTuning, PopulationSizeRounding.probabilistic)),
+    ("*$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, PopulationSizeRounding.probabilistic)),
+    ("*$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, PopulationSizeRounding.probabilistic)),
+    ("*$\\\\lambdabound\\\\sim\\\\ln n$", new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, MutationStrength.Shift, CrossoverStrength.ShiftD, GoodMutantStrategy.DoNotCountIdentical, defaultTuning, PopulationSizeRounding.probabilistic)),
   )
 
   private def bitsParameterTuningLinearDouble(context: Context, maxWeight: Double): Unit = {

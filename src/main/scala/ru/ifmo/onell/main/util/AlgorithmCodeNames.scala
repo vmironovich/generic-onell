@@ -61,10 +61,10 @@ object AlgorithmCodeNames {
   }
 
   private val populationSizeRoundings = Map(
-    'U' -> roundUpPopulationSize,
-    'D' -> roundDownPopulationSize,
-    'P' -> probabilisticPopulationSize,
-    )
+    'U' -> PopulationSizeRounding.alwaysUp,
+    'D' -> PopulationSizeRounding.alwaysDown,
+    'P' -> PopulationSizeRounding.probabilistic,
+  )
 
   private def expandPopulationSizeRounding(rnd: Char): Seq[Char] = rnd match {
     case 'U' => "U"
