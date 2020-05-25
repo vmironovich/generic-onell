@@ -252,6 +252,13 @@ object OnePlusLambdaLambdaGA {
       override def isStrictlyPositive: Boolean = true
       override def willAlwaysSampleMaximum(l: Double, d: Int, q: Double): Boolean = q / d >= 1 - probEps || d == 1
     }
+
+    implicit def sl2standardL(dummy: "SL"): CrossoverStrength = StandardL
+    implicit def sd2standardD(dummy: "SD"): CrossoverStrength = StandardD
+    implicit def rl2resamplingL(dummy: "RL"): CrossoverStrength = ResamplingL
+    implicit def rd2resamplingD(dummy: "RD"): CrossoverStrength = ResamplingD
+    implicit def hl2shiftL(dummy: "HL"): CrossoverStrength = ShiftL
+    implicit def hd2shiftD(dummy: "HD"): CrossoverStrength = ShiftD
   }
 
   sealed trait GoodMutantStrategy {
