@@ -63,7 +63,7 @@ class RLSTests extends AnyFlatSpec with Matchers {
     val runs = IndexedSeq.fill(10)(RLS.optimize(sat))
     val expected = size * (1 to size / 2).map(1.0 / _).sum
     val found = runs.sum.toDouble / runs.size
-    found should (be <= expected * 1.41)
+    found should (be <= expected * 1.5)
   }
 
   it should "log improvements correctly" in {
