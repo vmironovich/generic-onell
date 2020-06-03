@@ -173,13 +173,6 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
 object OnePlusLambdaLambdaGA {
   private[this] val probEps = 1e-10
 
-  trait LambdaTuning {
-    def lambda(rng: Random): Double
-    def notifyChildIsBetter(): Unit
-    def notifyChildIsEqual(): Unit
-    def notifyChildIsWorse(): Unit
-  }
-
   trait PopulationSizeRounding {
     def apply(fpValue: Double, rng: Random): Int
   }
@@ -288,6 +281,13 @@ object OnePlusLambdaLambdaGA {
     implicit def s2skip(dummy: 'S'): GoodMutantStrategy = SkipCrossover
     implicit def c2doNotCount(dummy: 'C'): GoodMutantStrategy = DoNotCountIdentical
     implicit def m2doNotSample(dummy: 'M'): GoodMutantStrategy = DoNotSampleIdentical
+  }
+
+  trait LambdaTuning {
+    def lambda(rng: Random): Double
+    def notifyChildIsBetter(): Unit
+    def notifyChildIsEqual(): Unit
+    def notifyChildIsWorse(): Unit
   }
 
   //noinspection ScalaUnusedSymbol
