@@ -157,8 +157,10 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
       }
 
       val nextFitness = if (fitnessComparison <= 0) {
-        // maybe replace with silent application of delta
-        fitness.applyDelta(individual, crossoverBest, f).tap(nf => assert(fitness.compare(bestChildFitness, nf) == 0))
+        val theFitness = fitness.applyDelta(individual, crossoverBest, f)
+        // this is the single most frequent assertion that fails if the algorithm is broken
+        assert(fitness.compare(bestChildFitness, theFitness) == 0)
+        theFitness
       } else f
       iterationLogger.logIteration(newEvaluations, bestChildFitness)
       iteration(nextFitness, newEvaluations)
