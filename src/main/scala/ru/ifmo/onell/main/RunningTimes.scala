@@ -116,6 +116,7 @@ object RunningTimes extends Main.Module {
       "(1+1) EA" -> OnePlusOneEA.Resampling,
       "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', "RL", 'C', 'D'),
       "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~2-rate" -> new OnePlusLambdaLambdaGA(twoRateLambda(1.5, n => n), 'R', "RL", 'C', 'D'),
       "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), 'R', "RL", 'C', 'D'),
       "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), 'R', "RL", 'C', 'D'),
       "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), 'R', "RL", 'C', 'D'),
@@ -250,6 +251,7 @@ object RunningTimes extends Main.Module {
     ("*$\\\\lambda=8$", new OnePlusLambdaLambdaGA(fixedLambda(8), 'H', "HD", 'C', 'P')),
     ("*$\\\\lambdabound=n$", new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'H', "HD", 'C', 'P')),
     ("*$\\\\lambdabound\\\\sim\\\\ln n$", new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'H', "HD", 'C', 'P')),
+    ("*$\\\\lambda$ 2-rate", new OnePlusLambdaLambdaGA(twoRateLambda(1.5, n => n), 'H', "HD", 'C', 'P')),
   )
 
   private def bitsParameterTuningLinearDouble(context: Context, maxWeight: Double): Unit = {
