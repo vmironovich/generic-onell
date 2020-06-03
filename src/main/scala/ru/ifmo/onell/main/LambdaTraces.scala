@@ -83,7 +83,7 @@ object LambdaTraces extends Main.Module {
         lastLambda = delegate.lambda(rng)
         if (distanceToWrite > 0) {
           if (distanceToWrite <= maxDistanceToLog)
-            builder.append("(").append(distanceToWrite).append(",").append(lastLambda).append(")")
+            builder.append("(").append(distanceToWrite).append(",").append(lastLambda).append(")\n")
           distanceToWrite = -1
         }
         lastLambda
@@ -107,7 +107,7 @@ object LambdaTraces extends Main.Module {
       val logger = new LoggerWithLambdaProxy[F](n / 2)
       for (_ <- 0 until runs) {
         val problem = problemInstanceGen(n, rng.nextLong()).withHammingDistanceTracking
-        val oll = algorithm(logger.attachedTuning(defaultOneFifthLambda))
+        val oll = algorithm(logger.attachedTuning(twoRateLambda(1.5, n => n)))
         oll.optimize(problem, logger)
         out.println("\\addplot[black,update limits=false] coordinates {" + logger.result() + "};")
       }
