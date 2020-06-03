@@ -5,7 +5,6 @@ import java.util.concurrent.{ThreadLocalRandom => Random}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.language.implicitConversions
-import scala.util.chaining._
 import scala.{specialized => sp}
 
 import ru.ifmo.onell._
