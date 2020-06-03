@@ -89,9 +89,9 @@ object LambdaTraces extends Main.Module {
         lastLambda
       }
 
-      override def notifyChildIsBetter(): Unit = delegate.notifyChildIsBetter()
-      override def notifyChildIsEqual(): Unit = delegate.notifyChildIsEqual()
-      override def notifyChildIsWorse(): Unit = delegate.notifyChildIsWorse()
+      override def notifyChildIsBetter(budgetSpent: Long): Unit = delegate.notifyChildIsBetter(budgetSpent)
+      override def notifyChildIsEqual(budgetSpent: Long): Unit = delegate.notifyChildIsEqual(budgetSpent)
+      override def notifyChildIsWorse(budgetSpent: Long): Unit = delegate.notifyChildIsWorse(budgetSpent)
     }
   }
 

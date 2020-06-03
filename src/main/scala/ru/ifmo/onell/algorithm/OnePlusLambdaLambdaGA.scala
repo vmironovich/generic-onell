@@ -5,7 +5,6 @@ import java.util.concurrent.{ThreadLocalRandom => Random}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.language.implicitConversions
-import scala.util.chaining._
 import scala.{specialized => sp}
 
 import ru.ifmo.onell._
@@ -146,18 +145,21 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
         }
       }
 
+      val budgetSpent = newEvaluations - evaluationsSoFar
       val fitnessComparison = fitness.compare(f, bestChildFitness)
       if (fitnessComparison < 0) {
-        lambdaP.notifyChildIsBetter()
+        lambdaP.notifyChildIsBetter(budgetSpent)
       } else if (fitnessComparison > 0) {
-        lambdaP.notifyChildIsWorse()
+        lambdaP.notifyChildIsWorse(budgetSpent)
       } else {
-        lambdaP.notifyChildIsEqual()
+        lambdaP.notifyChildIsEqual(budgetSpent)
       }
 
       val nextFitness = if (fitnessComparison <= 0) {
-        // maybe replace with silent application of delta
-        fitness.applyDelta(individual, crossoverBest, f).tap(nf => assert(fitness.compare(bestChildFitness, nf) == 0))
+        val theFitness = fitness.applyDelta(individual, crossoverBest, f)
+        // this is the single most frequent assertion that fails if the algorithm is broken
+        assert(fitness.compare(bestChildFitness, theFitness) == 0)
+        theFitness
       } else f
       iterationLogger.logIteration(newEvaluations, bestChildFitness)
       iteration(nextFitness, newEvaluations)
@@ -172,13 +174,6 @@ class OnePlusLambdaLambdaGA(lambdaTuning: Long => LambdaTuning,
 
 object OnePlusLambdaLambdaGA {
   private[this] val probEps = 1e-10
-
-  trait LambdaTuning {
-    def lambda(rng: Random): Double
-    def notifyChildIsBetter(): Unit
-    def notifyChildIsEqual(): Unit
-    def notifyChildIsWorse(): Unit
-  }
 
   trait PopulationSizeRounding {
     def apply(fpValue: Double, rng: Random): Int
@@ -290,20 +285,27 @@ object OnePlusLambdaLambdaGA {
     implicit def m2doNotSample(dummy: 'M'): GoodMutantStrategy = DoNotSampleIdentical
   }
 
+  trait LambdaTuning {
+    def lambda(rng: Random): Double
+    def notifyChildIsBetter(budgetSpent: Long): Unit
+    def notifyChildIsEqual(budgetSpent: Long): Unit
+    def notifyChildIsWorse(budgetSpent: Long): Unit
+  }
+
   //noinspection ScalaUnusedSymbol
   def fixedLambda(value: Double)(size: Long): LambdaTuning = new LambdaTuning {
     override def lambda(rng: Random): Double = value
-    override def notifyChildIsBetter(): Unit = {}
-    override def notifyChildIsEqual(): Unit = {}
-    override def notifyChildIsWorse(): Unit = {}
+    override def notifyChildIsBetter(budgetSpent: Long): Unit = {}
+    override def notifyChildIsEqual(budgetSpent: Long): Unit = {}
+    override def notifyChildIsWorse(budgetSpent: Long): Unit = {}
   }
 
   def fixedLogLambda(size: Long): LambdaTuning = new LambdaTuning {
     private[this] val theLambda = 2 * math.log(size + 1)
     override def lambda(rng: Random): Double = theLambda
-    override def notifyChildIsBetter(): Unit = {}
-    override def notifyChildIsEqual(): Unit = {}
-    override def notifyChildIsWorse(): Unit = {}
+    override def notifyChildIsBetter(budgetSpent: Long): Unit = {}
+    override def notifyChildIsEqual(budgetSpent: Long): Unit = {}
+    override def notifyChildIsWorse(budgetSpent: Long): Unit = {}
   }
 
   def fixedLogTowerLambda(size: Long): LambdaTuning = new LambdaTuning {
@@ -311,9 +313,9 @@ object OnePlusLambdaLambdaGA {
     private val logLogN = math.log(logN)
     private val theLambda = math.sqrt(logN * logLogN / math.log(logLogN))
     override def lambda(rng: Random): Double = theLambda
-    override def notifyChildIsBetter(): Unit = {}
-    override def notifyChildIsEqual(): Unit = {}
-    override def notifyChildIsWorse(): Unit = {}
+    override def notifyChildIsBetter(budgetSpent: Long): Unit = {}
+    override def notifyChildIsEqual(budgetSpent: Long): Unit = {}
+    override def notifyChildIsWorse(budgetSpent: Long): Unit = {}
   }
 
   def powerLawLambda(beta: Double)(size: Long): LambdaTuning = new LambdaTuning {
@@ -325,9 +327,9 @@ object OnePlusLambdaLambdaGA {
       val index = if (index0 >= 0) index0 else -index0 - 1
       index + 1 // since index=0 corresponds to lambda=1
     }
-    override def notifyChildIsBetter(): Unit = {}
-    override def notifyChildIsEqual(): Unit = {}
-    override def notifyChildIsWorse(): Unit = {}
+    override def notifyChildIsBetter(budgetSpent: Long): Unit = {}
+    override def notifyChildIsEqual(budgetSpent: Long): Unit = {}
+    override def notifyChildIsWorse(budgetSpent: Long): Unit = {}
   }
 
   def twoRateLambda(delta: Double, threshold: Long => Double)(size: Long): LambdaTuning = new LambdaTuning {
@@ -371,9 +373,9 @@ object OnePlusLambdaLambdaGA {
     private[this] val maxValue = threshold(size)
 
     override def lambda(rng: Random): Double = value
-    override def notifyChildIsBetter(): Unit = value = math.min(maxValue, math.max(1, value * onSuccess))
-    override def notifyChildIsEqual(): Unit = notifyChildIsWorse()
-    override def notifyChildIsWorse(): Unit = value = math.min(maxValue, math.max(1, value * onFailure))
+    override def notifyChildIsBetter(budgetSpent: Long): Unit = value = math.min(maxValue, math.max(1, value * onSuccess))
+    override def notifyChildIsEqual(budgetSpent: Long): Unit = notifyChildIsWorse(budgetSpent)
+    override def notifyChildIsWorse(budgetSpent: Long): Unit = value = math.min(maxValue, math.max(1, value * onFailure))
   }
 
   def defaultOneFifthLambda(size: Long): LambdaTuning = oneFifthLambda(OneFifthOnSuccess, OneFifthOnFailure, n => n)(size)
