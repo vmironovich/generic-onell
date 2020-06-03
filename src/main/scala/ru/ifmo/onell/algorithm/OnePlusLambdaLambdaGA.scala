@@ -330,6 +330,42 @@ object OnePlusLambdaLambdaGA {
     override def notifyChildIsWorse(): Unit = {}
   }
 
+  def twoRateLambda(delta: Double, threshold: Long => Double)(size: Long): LambdaTuning = new LambdaTuning {
+    require(1 < delta, "delta must be > 1")
+
+    private[this] val maxValue = math.max(1, threshold(size) / delta)
+
+    private[this] var valueSmall = 1.0
+    private[this] var valueLarge = delta
+    private[this] var budgetSmall, budgetLarge = 0.0
+    private[this] var useSmall = true
+
+    override def lambda(rng: Random): Double = {
+      useSmall = budgetSmall <= budgetLarge
+      if (useSmall) valueSmall else valueLarge
+    }
+
+    override def notifyChildIsBetter(): Unit = {
+      if (useSmall) {
+        valueSmall = math.max(1, math.min(maxValue, valueSmall / delta))
+        valueLarge = valueSmall * delta
+        budgetLarge = 0
+      } else {
+        valueSmall = math.max(1, math.min(maxValue, valueSmall * delta))
+        valueLarge = valueSmall * delta
+      }
+      budgetSmall = 0
+      budgetLarge = 0
+    }
+
+    override def notifyChildIsEqual(): Unit = notifyChildIsWorse()
+    override def notifyChildIsWorse(): Unit =
+      if (useSmall)
+        budgetSmall += valueSmall
+      else
+        budgetLarge += valueLarge
+  }
+
   def oneFifthLambda(onSuccess: Double, onFailure: Double, threshold: Long => Double)(size: Long): LambdaTuning = new LambdaTuning {
     private[this] var value = 1.0
     private[this] val maxValue = threshold(size)
