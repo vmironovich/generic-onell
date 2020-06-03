@@ -339,7 +339,7 @@ object OnePlusLambdaLambdaGA {
 
     private[this] var valueSmall = 1.0
     private[this] var valueLarge = delta
-    private[this] var budgetSmall, budgetLarge = 0.0
+    private[this] var budgetSmall, budgetLarge = 0L
     private[this] var useSmall = true
 
     override def lambda(rng: Random): Double = {
@@ -347,7 +347,7 @@ object OnePlusLambdaLambdaGA {
       if (useSmall) valueSmall else valueLarge
     }
 
-    override def notifyChildIsBetter(): Unit = {
+    override def notifyChildIsBetter(budgetSpent: Long): Unit = {
       if (useSmall) {
         valueSmall = math.max(1, math.min(maxValue, valueSmall / delta))
         valueLarge = valueSmall * delta
@@ -360,12 +360,8 @@ object OnePlusLambdaLambdaGA {
       budgetLarge = 0
     }
 
-    override def notifyChildIsEqual(): Unit = notifyChildIsWorse()
-    override def notifyChildIsWorse(): Unit =
-      if (useSmall)
-        budgetSmall += valueSmall
-      else
-        budgetLarge += valueLarge
+    override def notifyChildIsEqual(budgetSpent: Long): Unit = notifyChildIsWorse(budgetSpent)
+    override def notifyChildIsWorse(budgetSpent: Long): Unit = budgetSmall += budgetSpent
   }
 
   def oneFifthLambda(onSuccess: Double, onFailure: Double, threshold: Long => Double)(size: Long): LambdaTuning = new LambdaTuning {
