@@ -348,20 +348,16 @@ object OnePlusLambdaLambdaGA {
     }
 
     override def notifyChildIsBetter(budgetSpent: Long): Unit = {
-      if (useSmall) {
-        valueSmall = math.max(1, math.min(maxValue, valueSmall / delta))
-        valueLarge = valueSmall * delta
-        budgetLarge = 0
-      } else {
-        valueSmall = math.max(1, math.min(maxValue, valueSmall * delta))
-        valueLarge = valueSmall * delta
-      }
+      val newValueSmall = if (useSmall) valueSmall / delta else valueSmall * delta
+      valueSmall = math.max(1, math.min(maxValue, newValueSmall))
+      valueLarge = valueSmall * delta
       budgetSmall = 0
       budgetLarge = 0
     }
 
     override def notifyChildIsEqual(budgetSpent: Long): Unit = notifyChildIsWorse(budgetSpent)
-    override def notifyChildIsWorse(budgetSpent: Long): Unit = budgetSmall += budgetSpent
+    override def notifyChildIsWorse(budgetSpent: Long): Unit =
+      if (useSmall) budgetSmall += budgetSpent else budgetLarge += budgetSpent
   }
 
   def oneFifthLambda(onSuccess: Double, onFailure: Double, threshold: Long => Double)(size: Long): LambdaTuning = new LambdaTuning {
