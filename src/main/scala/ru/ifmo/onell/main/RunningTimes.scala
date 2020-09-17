@@ -10,7 +10,7 @@ import scala.util.Using
 import ru.ifmo.onell.{HasIndividualOperations, Main}
 import ru.ifmo.onell.algorithm.OnePlusLambdaLambdaGA._
 import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA}
-import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, LinearRandomIntegerWeights, OneMax, OneMaxPerm, RandomPlanted3SAT}
+import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, LinearRandomIntegerWeights, OneMax, OneMaxPerm, RandomPlanted3SAT, WModel}
 import ru.ifmo.onell.util.par.{Executor, Multiplexer, ParallelExecutor, SequentialExecutor}
 
 object RunningTimes extends Main.Module {
@@ -58,6 +58,7 @@ object RunningTimes extends Main.Module {
 
   override def moduleMain(args: Array[String]): Unit = args(0) match {
     case "bits:om"         => bitsOneMaxSimple(parseContext(args))
+    case "bits:wm"         => bitsWModel(parseContext(args), args)
     case "bits:om:sqrt"    => bitsOneMaxAlmostOptimal(parseContext(args), n => Seq(math.sqrt(n).toInt))
     case "bits:om:log"     => bitsOneMaxAlmostOptimal(parseContext(args), n => Seq(math.log(n + 1).toInt))
     case "bits:l2d:lambda" => bitsParameterTuningLinearDouble(parseContext(args), 2.0)
@@ -132,6 +133,36 @@ object RunningTimes extends Main.Module {
       for ((name, alg) <- algorithms) {
         scheduler addTask {
           val time = alg.optimize(new OneMax(n))
+          s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsWModel(context: Context, args : Array[String]): Unit = {
+    val algorithms = Seq(
+      //"RLS" -> OnePlusOneEA.RLS,
+      "(1+1) EA" -> OnePlusOneEA.Resampling,
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ=6" -> new OnePlusLambdaLambdaGA(fixedLambda(6), 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8), 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ=10" -> new OnePlusLambdaLambdaGA(fixedLambda(10), 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ=12" -> new OnePlusLambdaLambdaGA(fixedLambda(12), 'R', "RL", 'C', 'D'),
+      //"(1+(λ,λ)) GA, λ=fixed optimal" -> new OnePlusLambdaLambdaGA(fixedLogTowerLambda, 'R', "RL", 'C', 'D'),
+    )
+
+
+
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val time = alg.optimize(initWMod(n, args))
           s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
@@ -474,5 +505,13 @@ object RunningTimes extends Main.Module {
     nRuns    = args.getOption("--runs").toInt,
     nThreads = args.getOption("--threads").toInt,
     outName  = args.getOption("--out")
+  )
+
+  private def initWMod(n : Int, args : Array[String]) : WModel = new WModel(
+    n,
+    args.getOption("--dummy").toDouble,
+    args.getOption("--epi").toInt,
+    args.getOption("--neu").toInt,
+    args.getOption("--rug").toInt
   )
 }
