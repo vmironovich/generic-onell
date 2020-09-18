@@ -59,6 +59,7 @@ object RunningTimes extends Main.Module {
   override def moduleMain(args: Array[String]): Unit = args(0) match {
     case "bits:om"         => bitsOneMaxSimple(parseContext(args))
     case "bits:wm"         => bitsWModel(parseContext(args), args)
+    case "bits:wm:constants" => bitsWModelConstants(parseContext(args), args)
     case "bits:om:sqrt"    => bitsOneMaxAlmostOptimal(parseContext(args), n => Seq(math.sqrt(n).toInt))
     case "bits:om:log"     => bitsOneMaxAlmostOptimal(parseContext(args), n => Seq(math.log(n + 1).toInt))
     case "bits:l2d:lambda" => bitsParameterTuningLinearDouble(parseContext(args), 2.0)
@@ -156,14 +157,35 @@ object RunningTimes extends Main.Module {
       "(1+(λ,λ)) GA, λ=12" -> new OnePlusLambdaLambdaGA(fixedLambda(12), 'R', "RL", 'C', 'D'),
       //"(1+(λ,λ)) GA, λ=fixed optimal" -> new OnePlusLambdaLambdaGA(fixedLogTowerLambda, 'R', "RL", 'C', 'D'),
     )
-
-
-
     context.run { (scheduler, n) =>
       for ((name, alg) <- algorithms) {
         scheduler addTask {
           val time = alg.optimize(initWMod(n, args))
           s"""{"n":$n,"algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private val constantTuningChoices = {
+    for {
+      l1 <- Range(2,10,2)
+      l2 <- Range(2,10,2)
+      c <-  Range(4,12,2)
+      k <- Range(2,10,2)
+    } yield {
+      val jsonNamePart = s""""lambdaOne":"$l1","lambda2":"$l2","crossover":"${c*0.0025}","mutation":"$k""""
+      val algGenerator = () => new OnePlusLambdaLambdaGA(fixedLambda(l1),'R', "RL", 'C', 'D', new ConstantTuning(k, 0.0025* c / l1, l2/l1) )
+      jsonNamePart -> algGenerator
+    }
+  }
+
+  private def bitsWModelConstants(context: Context, args : Array[String]): Unit = {
+    context.run { (scheduler, n) =>
+      for ((jsonName, algGenerator) <- constantTuningChoices) {
+        scheduler addTask {
+          val time = algGenerator().optimize(initWMod(n, args))
+          s"""{"n":$n,$jsonName,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
