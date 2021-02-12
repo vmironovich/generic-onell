@@ -13,6 +13,11 @@ import ru.ifmo.onell.algorithm.{OnePlusLambdaLambdaGA, OnePlusOneEA}
 import ru.ifmo.onell.problem.{LinearRandomDoubleWeights, LinearRandomIntegerWeights, OneMax, OneMaxPerm, RandomPlanted3SAT, WModel, WModelPerm}
 import ru.ifmo.onell.util.par.{Executor, Multiplexer, ParallelExecutor, SequentialExecutor}
 
+import io.circe._, io.circe.parser._, io.circe.generic.semiauto._
+
+import scala.io.Source._
+
+
 object RunningTimes extends Main.Module {
   override def name: String = "runtime"
 
@@ -61,6 +66,9 @@ object RunningTimes extends Main.Module {
     case "bits:om:nn"      => bitsOMStaticNNTuning(parseContext(args), args)
     case "bits:wm"         => bitsWModel(parseContext(args), args)
     case "bits:wm:constants" => bitsWModelConstants(parseContext(args), args)
+    case "bits:wmfrac:constants" => bitsWModelFracConstants(parseContext(args), args)
+    case "bits:wm:tuned" => bitsWModelTuned(parseContext(args), args)
+    case "bits:wm:tuned:json" => bitsWModelTunedJson(args)
     case "bits:om:sqrt"    => bitsOneMaxAlmostOptimal(parseContext(args), n => Seq(math.sqrt(n).toInt))
     case "bits:om:log"     => bitsOneMaxAlmostOptimal(parseContext(args), n => Seq(math.log(n + 1).toInt))
     case "bits:l2d:lambda" => bitsParameterTuningLinearDouble(parseContext(args), 2.0)
@@ -165,8 +173,8 @@ object RunningTimes extends Main.Module {
 
   private def bitsWModel(context: Context, args : Array[String]): Unit = {
     val algorithms = Seq(
-      "RLS" -> OnePlusOneEA.RLS,
-      "(1+1) EA" -> OnePlusOneEA.Resampling,
+      //"RLS" -> OnePlusOneEA.RLS,
+      //"(1+1) EA" -> OnePlusOneEA.Resampling,
       //"(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', "RL", 'C', 'U'),
       "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', "RL", 'C', 'U'),
       //"(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), 'R', "RL", 'C', 'D'),
@@ -174,7 +182,7 @@ object RunningTimes extends Main.Module {
       //"(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), 'R', "RL", 'C', 'D'),
       //"(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), 'R', "RL", 'C', 'D'),
       //"(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), 'R', "RL", 'C', 'D'),
-      "(1+(λ,λ)) GA, λ=4" -> new OnePlusLambdaLambdaGA(fixedLambda(4), 'R', "RL", 'C', 'U'),
+      //"(1+(λ,λ)) GA, λ=4" -> new OnePlusLambdaLambdaGA(fixedLambda(4), 'R', "RL", 'C', 'U'),
       //"(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8), 'R', "RL", 'C', 'D'),
       //"(1+(λ,λ)) GA, λ=10" -> new OnePlusLambdaLambdaGA(fixedLambda(10), 'R', "RL", 'C', 'D'),
       //"(1+(λ,λ)) GA, λ=12" -> new OnePlusLambdaLambdaGA(fixedLambda(12), 'R', "RL", 'C', 'D'),
@@ -182,29 +190,129 @@ object RunningTimes extends Main.Module {
     )
     context.run { (scheduler, n) =>
       for ((name, alg) <- algorithms) {
+        for (neu <- Range(0,8)) {
         scheduler addTask {
-          val time = alg.optimize(initWMod(n, args))
           val dummy = args.getOption("--dummy").toDouble
           val epi = args.getOption("--epi").toInt
-          val neu = args.getOption("--neu").toInt
+          //val neu = args.getOption("--neu").toInt
           val rug = args.getOption("--rug").toInt
+          val time = alg.optimize(new WModel(n, dummy, epi, neu, rug))
           s"""{"n":$n,"dummy":$dummy,"epi":$epi,"neu":$neu,"rug":$rug, "algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
         }
       }
     }
   }
 
+
   private val constantTuningChoices = {
     for {
-      l1 <- Range(2,8,1)
-      l2 <- Range(2,8,1)
-      c <-  Range(4,20,4)
-      k <- Range(2,8,1)
+      l1 <- Range(2,10,1)
+      l2 <- Range(2,10,1)
+      c <-  Range(1,10,2)
+      k <- Range(1,10,1)
     } yield {
-      val jsonNamePart = s""""lambdaOne":"$l1","lambda2":"$l2","crossover":"${c*0.0025}","mutation":"$k""""
-      val algGenerator = () => new OnePlusLambdaLambdaGA(fixedLambda(l1),'R', "RL", 'C', 'D', new ConstantTuning(k, 0.0025* c / l1, l2/l1) )
+      val jsonNamePart = s""""lambdaOne":"$l1","lambda2":"$l2","crossover":"${c*0.01}","mutation":"$k""""
+      val algGenerator = () => new OnePlusLambdaLambdaGA(fixedLambda(l1),'R', "RL", 'C', 'D', new ConstantTuning(k, 0.01* c * l1, l2/l1) )
       jsonNamePart -> algGenerator
     }
+  }
+
+  private def bitsWModelTuned(context: Context, args: Array[String]) : Unit = {
+    val c = args.getOption("--c").toDouble
+    val l1 = args.getOption("--l1").toInt
+    val l2 = args.getOption("--l2").toInt
+    val k = args.getOption("--k").toInt
+    val algorithms = Seq(
+      "RLS" -> OnePlusOneEA.RLS,
+      "(1+1) EA" -> OnePlusOneEA.Resampling,
+      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', "RL", 'C', 'U'),
+      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', "RL", 'C', 'U'),
+      //"(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), 'R', "RL", 'C', 'D'),
+      //"(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), 'R', "RL", 'C', 'D'),
+      //"(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), 'R', "RL", 'C', 'D'),
+      //"(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), 'R', "RL", 'C', 'D'),
+      "(1+(λ,λ)) GA, λ=4" -> new OnePlusLambdaLambdaGA(fixedLambda(4), 'R', "RL", 'C', 'U'),
+      //"(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8), 'R', "RL", 'C', 'D'),
+      //"(1+(λ,λ)) GA, λ=10" -> new OnePlusLambdaLambdaGA(fixedLambda(10), 'R', "RL", 'C', 'D'),
+      //"(1+(λ,λ)) GA, λ=12" -> new OnePlusLambdaLambdaGA(fixedLambda(12), 'R', "RL", 'C', 'D'),
+      //"(1+(λ,λ)) GA, λ=fixed optimal" -> new OnePlusLambdaLambdaGA(fixedLogTowerLambda, 'R', "RL", 'C', 'D'),
+      "tuned" -> new OnePlusLambdaLambdaGA(fixedLambda(l1),'R', "RL", 'C', 'D', new ConstantTuning(k, c, l2/l1)),
+    )
+    context.run { (scheduler, n) =>
+      for ((name, alg) <- algorithms) {
+        scheduler addTask {
+          val n = args.getOption("--n").toInt
+          val dummy = args.getOption("--dummy").toDouble
+          val epi = args.getOption("--epi").toInt
+          val neu = args.getOption("--neu").toInt
+          val rug = args.getOption("--rug").toInt
+          val id = args.getOption("--id").toInt
+          val time = alg.optimize(new WModel(n, dummy, epi, neu, rug))
+          s"""{"id":$id,"n":$n,"dummy":$dummy,"epi":$epi,"neu":$neu,"rug":$rug, "algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  case class JSONRuntime(n : Double, dummy : Double, epi: Double, neu: Double,
+    rug : Double, lambdaOne : Double, lambda2 : Double, crossover : Double, mutation : Double)
+  implicit val runtimeDecoder: Decoder[JSONRuntime] = deriveDecoder
+
+
+
+  private def bitsWModelTunedJson(args: Array[String]) : Unit = {
+    val jsonString = fromFile("model_results.json").mkString
+    val decoded = decode[List[JSONRuntime]](jsonString)
+    val unpacked = decoded match {
+      case Right(x) => x
+      case Left(x) => List[JSONRuntime]()
+    }
+    print(unpacked(0))
+    val first = args.getOption("--from").toInt
+    var last = args.getOption("--to").toInt
+    if (last == 0) {
+      last = unpacked.length
+    }
+    for (i <- first to last) {
+      val l1 = unpacked(i).lambdaOne.toInt
+      val l2 = unpacked(i).lambda2.toInt
+      val k = unpacked(i).mutation.toInt
+      val c = Math.round(unpacked(i).crossover*100.0)/100.0
+      val algorithms = Seq(
+        "RLS" -> OnePlusOneEA.RLS,
+        "(1+1) EA" -> OnePlusOneEA.Resampling,
+        "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', "RL", 'C', 'U'),
+        "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', "RL", 'C', 'U'),
+        //"(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), 'R', "RL", 'C', 'D'),
+        //"(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), 'R', "RL", 'C', 'D'),
+        "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), 'R', "RL", 'C', 'D'),
+        //"(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), 'R', "RL", 'C', 'D'),
+        //"(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), 'R', "RL", 'C', 'D'),
+        "(1+(λ,λ)) GA, λ=4" -> new OnePlusLambdaLambdaGA(fixedLambda(4), 'R', "RL", 'C', 'U'),
+        //"(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8), 'R', "RL", 'C', 'D'),
+        //"(1+(λ,λ)) GA, λ=10" -> new OnePlusLambdaLambdaGA(fixedLambda(10), 'R', "RL", 'C', 'D'),
+        //"(1+(λ,λ)) GA, λ=12" -> new OnePlusLambdaLambdaGA(fixedLambda(12), 'R', "RL", 'C', 'D'),
+        //"(1+(λ,λ)) GA, λ=fixed optimal" -> new OnePlusLambdaLambdaGA(fixedLogTowerLambda, 'R', "RL", 'C', 'D'),
+        "tuned" -> new OnePlusLambdaLambdaGA(fixedLambda(l1),'R', "RL", 'C', 'D', new ConstantTuning(k, c, l2/l1)),
+      )
+      val myContext = customContext(args, "tuned_two/"+s"$i.json".reverse.padTo(11,'0').reverse)
+      myContext.run { (scheduler, n) =>
+        for ((name, alg) <- algorithms) {
+          scheduler addTask {
+            val n =  unpacked(i).n.toInt
+            val dummy = unpacked(i).dummy
+            val epi = unpacked(i).epi.toInt
+            val neu = unpacked(i).neu.toInt
+            val rug = unpacked(i).rug.toInt
+            val time = alg.optimize(new WModel(n, dummy, epi, neu, rug))
+            s"""{"id":$i,"n":$n,"dummy":$dummy,"epi":$epi,"neu":$neu,"rug":$rug, "lambdaOne":"$l1", "lambda2":"$l2", "crossover":"$c", "mutation":"$k","algorithm":"$name","runtime":$time,"runtime over n":${time.toDouble / n}}"""
+          }
+        }
+      }
+    }
+
   }
 
   private def bitsWModelConstants(context: Context, args : Array[String]): Unit = {
@@ -217,6 +325,24 @@ object RunningTimes extends Main.Module {
           val neu = args.getOption("--neu").toInt
           val rug = args.getOption("--rug").toInt
           s"""{"n":$n,"dummy":$dummy,"epi":$epi,"neu":$neu,"rug":$rug,$jsonName,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
+        }
+      }
+    }
+  }
+
+  private def bitsWModelFracConstants(context: Context, args : Array[String]): Unit = {
+    context.run { (scheduler, n) =>
+      for ((jsonName, algGenerator) <- constantTuningChoices) {
+        scheduler addTask {
+          val time = algGenerator().optimize(initWModFrac(n, args))
+          val dummy = args.getOption("--dummy").toDouble
+          val epiF = args.getOption("--epi").toDouble
+          val epi = (epiF*n).toInt
+          val neuF = args.getOption("--neu").toDouble
+          val neu = (neuF*n).toInt
+          val rugF = args.getOption("--rug").toDouble
+          val rug = (rugF*n).toInt
+          s"""{"n":$n,"dummy":$dummy,"epi":$epi,"neu":$neu,"rug":$rug,"epiF":$epiF,"neuF":$neuF,"rugF":$rugF,$jsonName,"runtime":$time,"runtime over n":${time.toDouble / n}}"""
         }
       }
     }
@@ -535,7 +661,7 @@ object RunningTimes extends Main.Module {
       ("(1+(λ,λ)) GA, λ=10", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLambda(10), 'R', "RL", 'C', 'U')),
       ("(1+(λ,λ)) GA, λ=4", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLambda(4), 'R', "RL", 'C', 'U')),
       ("(1+(λ,λ)) GA, λ=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(fixedLogLambda, 'R', "RL", 'C', 'U')),
-      ("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', "RL", 'C', 'U')),
+      //("(1+(λ,λ)) GA, λ<=2ln n", Int.MaxValue, new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', "RL", 'C', 'U')),
       //("(1+(λ,λ)) GA, λ<=n", 256, new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', "RL", 'C', 'U')),
     )
 
@@ -583,6 +709,13 @@ object RunningTimes extends Main.Module {
     outName  = args.getOption("--out")
   )
 
+  private def customContext(args: Array[String], outName : String): Context = new Context(
+    powers = 1 to 1,
+    nRuns = args.getOption("--runs").toInt,
+    nThreads = args.getOption("--threads").toInt,
+    outName = outName
+  )
+
   private def initWMod(n : Int, args : Array[String]) : WModel = new WModel(
     n,
     args.getOption("--dummy").toDouble,
@@ -591,11 +724,20 @@ object RunningTimes extends Main.Module {
     args.getOption("--rug").toInt
   )
 
+
   private def initWModPerm(n : Int, args : Array[String]) : WModelPerm = new WModelPerm(
     n,
     args.getOption("--dummy").toDouble,
     args.getOption("--epi").toInt,
     args.getOption("--neu").toInt,
     args.getOption("--rug").toInt
+  )
+
+  private def initWModFrac(n : Int, args : Array[String]) : WModel = new WModel(
+    n,
+    args.getOption("--dummy").toDouble,
+    (args.getOption("--epi").toDouble * n).toInt,
+    (args.getOption("--neu").toDouble * n).toInt,
+    (args.getOption("--rug").toDouble * n).toInt
   )
 }
