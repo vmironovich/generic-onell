@@ -224,21 +224,22 @@ object RunningTimes extends Main.Module {
     val l2 = args.getOption("--l2").toInt
     val k = args.getOption("--k").toInt
     val algorithms = Seq(
-      "RLS" -> OnePlusOneEA.RLS,
-      "(1+1) EA" -> OnePlusOneEA.Resampling,
-      "(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', "RL", 'C', 'U'),
-      "(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', "RL", 'C', 'U'),
+      //"RLS" -> OnePlusOneEA.RLS,
+      //"(1+1) EA" -> OnePlusOneEA.Resampling,
+      //"(1+(λ,λ)) GA, λ<=n" -> new OnePlusLambdaLambdaGA(defaultOneFifthLambda, 'R', "RL", 'C', 'U'),
+      //"(1+(λ,λ)) GA, λ<=2ln n" -> new OnePlusLambdaLambdaGA(logCappedOneFifthLambda, 'R', "RL", 'C', 'U'),
       //"(1+(λ,λ)) GA, λ~pow(2.1)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.1), 'R', "RL", 'C', 'D'),
       //"(1+(λ,λ)) GA, λ~pow(2.3)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.3), 'R', "RL", 'C', 'D'),
-      "(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), 'R', "RL", 'C', 'D'),
+      //"(1+(λ,λ)) GA, λ~pow(2.5)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.5), 'R', "RL", 'C', 'D'),
       //"(1+(λ,λ)) GA, λ~pow(2.7)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.7), 'R', "RL", 'C', 'D'),
       //"(1+(λ,λ)) GA, λ~pow(2.9)" -> new OnePlusLambdaLambdaGA(powerLawLambda(2.9), 'R', "RL", 'C', 'D'),
-      "(1+(λ,λ)) GA, λ=4" -> new OnePlusLambdaLambdaGA(fixedLambda(4), 'R', "RL", 'C', 'U'),
+      //"(1+(λ,λ)) GA, λ=4" -> new OnePlusLambdaLambdaGA(fixedLambda(4), 'R', "RL", 'C', 'U'),
       //"(1+(λ,λ)) GA, λ=8" -> new OnePlusLambdaLambdaGA(fixedLambda(8), 'R', "RL", 'C', 'D'),
       //"(1+(λ,λ)) GA, λ=10" -> new OnePlusLambdaLambdaGA(fixedLambda(10), 'R', "RL", 'C', 'D'),
       //"(1+(λ,λ)) GA, λ=12" -> new OnePlusLambdaLambdaGA(fixedLambda(12), 'R', "RL", 'C', 'D'),
       //"(1+(λ,λ)) GA, λ=fixed optimal" -> new OnePlusLambdaLambdaGA(fixedLogTowerLambda, 'R', "RL", 'C', 'D'),
-      "tuned" -> new OnePlusLambdaLambdaGA(fixedLambda(l1),'R', "RL", 'C', 'D', new ConstantTuning(k, c, l2/l1)),
+      //"tuned" -> new OnePlusLambdaLambdaGA(fixedLambda(l1),'R', "RL", 'C', 'D', new ConstantTuning(k, c, l2/l1)),
+      "best_in_dataset" -> new OnePlusLambdaLambdaGA(fixedLambda(l1),'R', "RL", 'C', 'D', new ConstantTuning(k, c, l2/l1)),
     )
     context.run { (scheduler, n) =>
       for ((name, alg) <- algorithms) {
@@ -263,7 +264,8 @@ object RunningTimes extends Main.Module {
 
 
   private def bitsWModelTunedJson(args: Array[String]) : Unit = {
-    val jsonString = fromFile("model_results.json").mkString
+    val modelFile = args.getOption("--model_file").toString
+    val jsonString = fromFile(modelFile).mkString
     val decoded = decode[List[JSONRuntime]](jsonString)
     val unpacked = decoded match {
       case Right(x) => x
@@ -276,10 +278,10 @@ object RunningTimes extends Main.Module {
       last = unpacked.length
     }
     for (i <- first to last) {
-      val l1 = unpacked(i).lambdaOne.toInt
-      val l2 = unpacked(i).lambda2.toInt
-      val k = unpacked(i).mutation.toInt
-      val c = Math.round(unpacked(i).crossover*100.0)/100.0
+      val l1 = unpacked(i).lambdaOne.toInt //2
+      val l2 = unpacked(i).lambda2.toInt //2
+      val k = unpacked(i).mutation.toInt //8
+      val c = Math.round(unpacked(i).crossover*100.0)/100.0 //0.01
       val algorithms = Seq(
         "RLS" -> OnePlusOneEA.RLS,
         "(1+1) EA" -> OnePlusOneEA.Resampling,
@@ -295,9 +297,10 @@ object RunningTimes extends Main.Module {
         //"(1+(λ,λ)) GA, λ=10" -> new OnePlusLambdaLambdaGA(fixedLambda(10), 'R', "RL", 'C', 'D'),
         //"(1+(λ,λ)) GA, λ=12" -> new OnePlusLambdaLambdaGA(fixedLambda(12), 'R', "RL", 'C', 'D'),
         //"(1+(λ,λ)) GA, λ=fixed optimal" -> new OnePlusLambdaLambdaGA(fixedLogTowerLambda, 'R', "RL", 'C', 'D'),
-        "tuned" -> new OnePlusLambdaLambdaGA(fixedLambda(l1),'R', "RL", 'C', 'D', new ConstantTuning(k, c, l2/l1)),
+        "tuned" -> new OnePlusLambdaLambdaGA(fixedLambda(l1),'R', "RL", 'C', 'D', new ConstantTuning(k, c*l1, l2/l1)),
+        "trueSB" -> new OnePlusLambdaLambdaGA(fixedLambda(2),'R', "RL", 'C', 'D', new ConstantTuning(8, 0.01*2, 1.0)),
       )
-      val myContext = customContext(args, "tuned_two/"+s"$i.json".reverse.padTo(11,'0').reverse)
+      val myContext = customContext(args, "tuned_big/"+s"${i/10000}/".reverse.padTo(3,'0').reverse+s"$i.json".reverse.padTo(11,'0').reverse)
       myContext.run { (scheduler, n) =>
         for ((name, alg) <- algorithms) {
           scheduler addTask {
